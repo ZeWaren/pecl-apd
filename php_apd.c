@@ -26,6 +26,13 @@
 #include <unistd.h>
 
 // ---------------------------------------------------------------------------
+// Tracng calls to zend_compile_file
+// ---------------------------------------------------------------------------
+#undef TRACE_ZEND_COMPILE /* define to trace all calls to zend_compile_file */
+static ZEND_API zend_op_array* apd_compile_file(zend_file_handle*, int CLS_DC);
+static ZEND_API zend_op_array* (*old_compile_file)(zend_file_handle*, int CLS_DC);
+
+// ---------------------------------------------------------------------------
 // Required Declarations
 // ---------------------------------------------------------------------------
 
@@ -59,7 +66,30 @@ function_entry apd_functions[] = {
 int print_indent;
 zend_apd_globals apd_globals;
 
+static ZEND_API zend_op_array* apd_compile_file(zend_file_handle* zfh, int type CLS_DC)
+{
+	struct timeval begin;
+	struct timeval end;
+	zend_op_array* ret_op_array;
 
+	if(APD_GLOBALS(bitmask) & TIMING_TRACE) {
+		struct timeval elapsed;
+		gettimeofday(&begin, NULL);
+		timevaldiff(&begin, &APD_GLOBALS(req_begin), &elapsed);
+		fprintf(APD_GLOBALS(dump_file), "(%3d.%06d): Entered zend_compile file.\n", elapsed.tv_sec, elapsed.tv_usec);
+	}
+	ret_op_array = old_compile_file(zfh, type CLS_DC);
+	if(APD_GLOBALS(bitmask) & TIMING_TRACE) {
+		struct timeval elapsed;
+		struct timeval diff;
+		
+		gettimeofday(&end, NULL);
+		timevaldiff(&end, &APD_GLOBALS(req_begin), &elapsed);
+		timevaldiff(&end, &begin, &diff);
+		fprintf(APD_GLOBALS(dump_file), "(%3d.%06d): Exited zend_compile file. Elaspsed (%d.%06d)\n", elapsed.tv_sec, elapsed.tv_usec, diff.tv_sec, diff.tv_usec);
+	}
+	return ret_op_array;
+}
 // ---------------------------------------------------------------------------
 // Call Tracing (Application-specific Code)
 // ---------------------------------------------------------------------------
@@ -512,6 +542,8 @@ static PHP_INI_MH(set_dumpdir)
 
 PHP_INI_BEGIN()
     PHP_INI_ENTRY("apd.dumpdir",    NULL,   PHP_INI_ALL, set_dumpdir)
+	STD_PHP_INI_ENTRY("apd.bitmask", "0", PHP_INI_ALL, OnUpdateInt, 
+		bitmask, zend_apd_globals, apd_globals)
 PHP_INI_END()
 
 
@@ -521,8 +553,13 @@ PHP_INI_END()
 
 PHP_MINIT_FUNCTION(apd)
 {
-	APD_GLOBALS(bitmask) = 0;
 	REGISTER_INI_ENTRIES();
+	#ifdef TRACE_ZEND_COMPILE /* we can trace the time to compile things. */
+	gettimeofday(&APD_GLOBALS(req_begin), NULL);
+	gettimeofday(&APD_GLOBALS(last_call), NULL);
+	old_compile_file = zend_compile_file;
+	zend_compile_file = apd_compile_file;
+	#endif
 	return SUCCESS;
 }
 
