@@ -25,8 +25,7 @@
 #include <sys/stat.h>
 
 #ifdef PHP_WIN32
-#include "win32/time.h"
-#include <process.h>
+#include "win32compat.h"
 #else
 #include <sys/time.h>
 #include <unistd.h>
@@ -36,26 +35,11 @@
 // Tracng calls to zend_compile_file
 // ---------------------------------------------------------------------------
 #undef TRACE_ZEND_COMPILE /* define to trace all calls to zend_compile_file */
-EXPORT zend_op_array* apd_compile_file(zend_file_handle* TSRMLS_DC);
-EXPORT zend_op_array* (*old_compile_file)(zend_file_handle* TSRMLS_DC);
-
-// ---------------------------------------------------------------------------
-// Required Declarations
-// ---------------------------------------------------------------------------
+ZEND_DLEXPORT zend_op_array* apd_compile_file(zend_file_handle* TSRMLS_DC);
+ZEND_DLEXPORT zend_op_array* (*old_compile_file)(zend_file_handle* TSRMLS_DC);
 
 /* This comes from php install tree. */
 #include "ext/standard/info.h"
-
-/* Declarations of functions to be exported. */
-PHP_FUNCTION(apd_callstack);
-PHP_FUNCTION(apd_cluck);
-PHP_FUNCTION(apd_croak);
-PHP_FUNCTION(apd_dump_regular_resources);
-PHP_FUNCTION(apd_dump_persistent_resources);
-PHP_FUNCTION(override_function);
-PHP_FUNCTION(rename_function);
-PHP_FUNCTION(dump_function_table);
-PHP_FUNCTION(apd_set_session_trace);
 
 ///* List of exported functions. */
 //static unsigned char a2_arg_force_ref[] = { 2, BYREF_NONE, BYREF_FORCE };
@@ -77,9 +61,7 @@ function_entry apd_functions[] = {
 int print_indent;
 ZEND_DECLARE_MODULE_GLOBALS(apd);
 
-void printUnsortedSummary(struct timeval);
-
-EXPORT zend_op_array* apd_compile_file(zend_file_handle* zfh TSRMLS_DC)
+ZEND_DLEXPORT zend_op_array* apd_compile_file(zend_file_handle* zfh TSRMLS_DC)
 {
 	struct timeval begin;
 	struct timeval end;
@@ -550,12 +532,6 @@ static void traceFunctionExit()
 // Module Entry
 // ---------------------------------------------------------------------------
 
-// Declarations of startup/shutdown functions.
-PHP_MINIT_FUNCTION(apd);
-PHP_RINIT_FUNCTION(apd);
-PHP_RSHUTDOWN_FUNCTION(apd);
-PHP_MINFO_FUNCTION(apd);
-
 zend_module_entry apd_module_entry = {
 #if ZEND_MODULE_API_NO >= 20010901
     STANDARD_MODULE_HEADER,
@@ -574,7 +550,7 @@ zend_module_entry apd_module_entry = {
 #endif
 	STANDARD_MODULE_PROPERTIES_EX
 };
-zend_apd_globals apd_globals;
+ZEND_DECLARE_MODULE_GLOBALS(apd);
 
 #if COMPILE_DL_APD
 ZEND_GET_MODULE(apd)
@@ -607,8 +583,13 @@ PHP_INI_END()
 // Module Startup and Shutdown Function Definitions
 // ---------------------------------------------------------------------------
 
+static void php_apd_init_globals(zend_apd_globals *apd_globals) {
+	memset(apd_globals, 0, sizeof(zend_apd_globals));
+}
+
 PHP_MINIT_FUNCTION(apd)
 {
+	ZEND_INIT_MODULE_GLOBALS(apd, php_apd_init_globals, NULL);
 	REGISTER_INI_ENTRIES();
 	
 #ifdef TRACE_ZEND_COMPILE /* we can trace the time to compile things. */
@@ -648,7 +629,7 @@ PHP_RSHUTDOWN_FUNCTION(apd)
     	fprintf(APD_GLOBALS(dump_file), "---------------------------------------------------------------------------\n");
 		fprintf(APD_GLOBALS(dump_file), "Process Pid (%d)\n", getpid());
 		if(APD_GLOBALS(bitmask) & SUMMARY_TRACE) {
-			printUnsortedSummary(elapsed);
+			printUnsortedSummary(elapsed TSRMLS_CC);
 		}
 		fprintf(APD_GLOBALS(dump_file), "---------------------------------------------------------------------------\n");
 		fprintf(APD_GLOBALS(dump_file), "Trace Ended at %s", ctime(&starttime));
@@ -883,7 +864,7 @@ PHP_FUNCTION(override_function)
 		if (zend_hash_find(EG(function_table), TEMP_OVRD_FUNC_NAME,
 			sizeof(TEMP_OVRD_FUNC_NAME), (void **) &func) == FAILURE) 
 		{
-			zend_error(E_ERROR, "Temp function from override_function() not present in global function_table.  Something is amiss");
+			zend_error(E_ERROR, "%s() temporary function name not present in global function_table", get_active_function_name(TSRMLS_C));
 			RETURN_FALSE;
 		}
 		function_add_ref(func);
@@ -1327,7 +1308,7 @@ ZEND_DLEXPORT void fcallBegin(zend_op_array *op_array)
 //dumpOpArray(op_array);
 }
 
-void printUnsortedSummary(struct timeval elapsed)
+void printUnsortedSummary(struct timeval elapsed TSRMLS_DC)
 {
 	Bucket *p;
 	summary_t* summary;

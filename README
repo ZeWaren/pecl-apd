@@ -30,17 +30,15 @@ Buid/Installation process:
         zend_extension = /absolute/path/to/php_apd.so
         apd.dumpdir = /absolute/path/to/trace/directory
 
-    If you're using a debug build of PHP, make sure you use
-    zend_extension_debug instead of zend_extension:
+    Depending on your PHP build, the zend_extension directive can be one
+    of the following:
+
+        zend_extension              (non ZTS, non debug build)
+        zend_extension_ts           (    ZTS, non debug build)
+        zend_extension_debug        (non ZTS,     debug build)
+        zend_extension_debug_ts     (    ZTS,     debug build)
 
         zend_extension_debug = /absolute/path/to/php_apd.so
-
-
-    zend_extension(_debug):
-
-        You should always specify the absolute path to your extensions. If you don't
-        specify a path it is by default search in your systems library path
-        (usually /usr/local/lib, /usr/lib, etc)
 
     apd.dumpdir:
 
@@ -48,8 +46,31 @@ Buid/Installation process:
         means always relative to your PHP executable.
 
 
-    If you're running the CGI version of PHP, you will need to add the '-e'
-    flag to enable extended information for apd to work properly.
+    *** NOTE ******************************************************************
+    *
+    * If you're running the CGI version of PHP, you will need to add the '-e'
+    * flag to enable extended information for apd to work properly:
+    *
+    *     php -e -f script.php
+    *
+    ***************************************************************************
+
+
+Win32ism
+----------------------------------------------------------------------------- *
+
+    To build APD under linux you need a working PHP compilation
+    environment as described on http://php.net/ (basically, it requires
+    you to have MSVC, win32build.zip and bison/flex and some know how
+    about how to get it to work). Also make sure that adp.dsp has DOS
+    line ending! If it has unix line endings, MSVC will complain about it.
+
+    The timing of the tracer is currently not as accurat as the one under
+    Linux (will change). Also, you can use normal Windows paths values for
+    your PHP.INI file:
+
+        zend_extension_debug_ts = c:\phpdev\php_apd.dll
+        apc.dumpdir = c:\phpdev\traces
 
 
 How to use PHP-APD in your scripts

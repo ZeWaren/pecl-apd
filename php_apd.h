@@ -29,13 +29,32 @@
 #include "zend_compile.h"
 #include "zend_extensions.h"
 
-#ifdef PHP_WIN32
-#define EXPORT __declspec(dllexport)
-#else
+#ifndef PHP_WIN32
 #include <sys/time.h>
 #include <unistd.h>
-#define EXPORT
 #endif
+
+// ---------------------------------------------------------------------------
+// Required Declarations
+// ---------------------------------------------------------------------------
+
+/* Declarations of functions to be exported. */
+PHP_FUNCTION(apd_callstack);
+PHP_FUNCTION(apd_cluck);
+PHP_FUNCTION(apd_croak);
+PHP_FUNCTION(apd_dump_regular_resources);
+PHP_FUNCTION(apd_dump_persistent_resources);
+PHP_FUNCTION(override_function);
+PHP_FUNCTION(rename_function);
+PHP_FUNCTION(dump_function_table);
+PHP_FUNCTION(apd_set_session_trace);
+
+PHP_MINIT_FUNCTION(apd);
+PHP_RINIT_FUNCTION(apd);
+PHP_RSHUTDOWN_FUNCTION(apd);
+PHP_MINFO_FUNCTION(apd);
+
+void printUnsortedSummary(struct timeval TSRMLS_DC);
 
 extern zend_module_entry apd_module_entry;
 #define apd_module_ptr &apd_module_entry
