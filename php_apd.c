@@ -372,10 +372,12 @@ static void shutdownTracer()
 	apd_stack_destroy(stack);
 }
 
-char *apd_get_active_function_name(zend_execute_data *execd, zend_op_array *op_array TSRMLS_DC)
+#if  ZEND_EXTENSION_API_NO > 20020429
+char *apd_get_active_function_name(zend_op_array *op_array TSRMLS_DC)
 {
     char *funcname = NULL;
     int curSize = 0;
+    execd = EG(current_execute_data);
     if(execd) {
         if(execd->function_state.function->common.function_name) {
             if(execd->ce) {
@@ -420,6 +422,37 @@ char *apd_get_active_function_name(zend_execute_data *execd, zend_op_array *op_a
     }
     return funcname;
 }
+#else 
+char *apd_get_active_function_name(zend_op_array *op_array TSRMLS_DC)
+{
+        char *fname = NULL;
+        zval **object_ptr_ptr;
+        if(zend_hash_find(EG(active_symbol_table), "this", sizeof("this"),
+                (void **) &object_ptr_ptr)!=FAILURE)
+        {
+                zend_class_entry *ce;
+                zend_function **dummy;
+                tmp = get_active_function_name(TSRMLS_C);
+                ce = Z_OBJCE_PP(object_ptr_ptr);
+                if(zend_hash_exists(&(ce->function_table), tmp, strlen(tmp) + 1)) {
+                    tmp = apd_sprintf("%s::%s", ce->name, tmp);
+                }
+                else {
+                }
+                fname = strdup(tmp);
+                apd_efree(tmp);
+        }
+        else {
+                if(EG(function_state_ptr)) {
+                        fname = strdup(get_active_function_name(TSRMLS_C));
+                }
+                else {
+                        fname = strdup("main");
+                }
+        }
+        return fname;
+}
+#endif
 
 static void traceFunctionEntry(
 		HashTable * func_table,
@@ -699,7 +732,7 @@ ZEND_API void apd_execute(zend_op_array *op_array TSRMLS_DC)
 	int argCount;
 	apd_stack_t* argStack;
 	zval **object_ptr_ptr;
-        fname = apd_get_active_function_name(EG(current_execute_data), op_array TSRMLS_CC);
+        fname = apd_get_active_function_name(op_array TSRMLS_CC);
 	traceFunctionEntry( EG(function_table), fname, ZEND_USER_FUNCTION,
 		zend_get_executed_filename(TSRMLS_C),
 		zend_get_executed_lineno(TSRMLS_C));
@@ -718,7 +751,7 @@ ZEND_API void apd_execute_internal(zend_execute_data *execute_data_ptr, int retu
 	int argCount;
 	apd_stack_t* argStack;
 	zval **object_ptr_ptr;
-        fname = apd_get_active_function_name(EG(current_execute_data), EG(current_execute_data)->op_array TSRMLS_CC);
+        fname = apd_get_active_function_name(EG(current_execute_data)->op_array TSRMLS_CC);
 	traceFunctionEntry( EG(function_table), fname, ZEND_INTERNAL_FUNCTION,
 		zend_get_executed_filename(TSRMLS_C),
 		zend_get_executed_lineno(TSRMLS_C));
