@@ -514,6 +514,9 @@ PHP_RSHUTDOWN_FUNCTION(apd);
 PHP_MINFO_FUNCTION(apd);
 
 zend_module_entry apd_module_entry = {
+#if ZEND_MODULE_API_NO >= 20010901
+    STANDARD_MODULE_HEADER,
+#endif
 	"APD",
 	apd_functions,
 	PHP_MINIT(apd),
@@ -521,7 +524,12 @@ zend_module_entry apd_module_entry = {
 	PHP_RINIT(apd),
 	PHP_RSHUTDOWN(apd),
 	PHP_MINFO(apd),
-	STANDARD_MODULE_PROPERTIES
+	NULL,
+	NULL,
+#if ZEND_MODULE_API_NO >= 20010901
+    NO_VERSION_YET,          /* extension version number (string) */
+#endif
+	STANDARD_MODULE_PROPERTIES_EX
 };
 zend_apd_globals apd_globals;
 
