@@ -1,8 +1,9 @@
 PHP-APD
 ----------------------------------------------------------------------------- *
 
-    This is an extremely beta howto on how to use this profiler.
-
+    Welcome to Version 2 of this README.  If you have read the README
+    before, you may want to read it again.  There may be new stuff, 
+    particularly regarding how to use the new pprof tracing.
 
 Buid/Installation process:
 ----------------------------------------------------------------------------- *
@@ -72,7 +73,124 @@ Win32ism
         apd.dumpdir = c:\phpdev\traces
 
 
-How to use PHP-APD in your scripts
+How to use PHP-APD in your scripts with pprof (new style)
+----------------------------------------------------------------------------- *
+
+    This section describes the new way that profiling works under apd.  The 
+    old method, which generates a non-machine parseable indented output is
+    still available (see below), but is debing deprecated in favor of this,
+    the pprof output style, which dumps a machine-readable file and provides
+    a tool for interpreting the trace.  This allows for much greater specificity
+    in the output, allows different sorts of summary generation, and a good
+    deal of conrol over the call-tree output.  
+
+    To set pprof tracing, just add the following line to the top of your
+    phpp script:
+
+        apd_set_pprof_trace();
+
+    This will generate a pprof.<pid> file in your apd.dumpdir.  The format
+    of this file is as follows:
+
+! 1 simple.php
+& 1 main 2
++ 1 1 2
+- 2
+& 3 hello 2
++ 3 1 9
+- 3
+& 4 yell 2
++ 4 1 9
+& 5 strtoupper 1
++ 5 1 4
+- 5
+- 4
+- 1
+
+
+! assigns a numeric index to a file so we can easily reference that file later. 
+& declares a new function and it's index for the trace.  
++ shows a function being entered and the file index and line number it was called on. 
+- shows a function being exited. 
+@ shows a time elapsed in the form  
+    @ process_user_clock_t process_system_clock_t process_real_clock_t
+
+The syntax of the file is largely for informational purposes, it's not designed
+for human consumption.  To extract human-readable information from the trace, use
+the pprofp utility, bundled with APD.  The options to apd are:
+
+pprofp <flags> <trace file>
+    Sort options
+    -a          Sort by alphabetic names of subroutines.
+    -l          Sort by number of calls to subroutines
+    -r          Sort by real time spent in subroutines.
+    -R          Sort by real time spent in subroutines (inclusive of child calls).
+    -s          Sort by system time spent in subroutines.
+    -S          Sort by system time spent in subroutines (inclusive of child calls).
+    -u          Sort by user time spent in subroutines.
+    -U          Sort by user time spent in subroutines (inclusive of child calls).
+    -v          Sort by average amount of time spent in subroutines.
+    -z          Sort by user+system time spent in subroutines. (default)
+
+    Display options
+    -c          Display Real time elapsed alongside call tree.
+    -i          Suppress reporting for php builtin functions
+    -O <cnt>    Specifies maximum number of subroutines to display. (default 15)
+    -t          Display compressed call tree.
+    -T          Display uncompressed call tree
+
+Thus, to get basic output on the trace, we would do 
+
+pprofp -u /tmp/pprof.<pid>
+
+and we get something like:
+
+10:33:29(george@ballista)[~/pear/PECL/apd]> pprofp -u /tmp/pprof.23424
+
+Trace for /data/storage/mirrors/www.php.net/index.php
+Total Elapsed Time =    0.09
+Total System Time  =    0.00
+Total User Time    =    0.06
+
+
+         Real         User        System             secs/    cumm
+%Time (excl/cumm)  (excl/cumm)  (excl/cumm) Calls    call    s/call Name
+------------------------------------------------------------------------
+ 33.3  0.02  0.02   0.02  0.02   0.00  0.00     7   0.0029    0.00 require_once
+ 33.3  0.01  0.01   0.02  0.02   0.00  0.00    55   0.0004    0.00 sprintf
+ 33.3  0.00  0.00   0.02  0.02   0.00  0.00   144   0.0001    0.00 feof
+  0.0  0.00  0.00   0.00  0.00   0.00  0.00     1   0.0000    0.00 htmlspecialchars
+  0.0  0.00  0.00   0.00  0.00   0.00  0.00     1   0.0000    0.00 substr
+  0.0  0.00  0.00   0.00  0.00   0.00  0.00     1   0.0000    0.00 make_submit
+  0.0  0.00  0.00   0.00  0.00   0.00  0.00     7   0.0000    0.00 printf
+  0.0  0.02  0.02   0.00  0.00   0.00  0.00     6   0.0000    0.00 printf
+  0.0  0.02  0.02   0.00  0.00   0.00  0.00     6   0.0000    0.00 getimagesize
+  0.0  0.00  0.01   0.00  0.02   0.00  0.00    17   0.0000    0.00 print_link
+  0.0  0.00  0.00   0.00  0.00   0.00  0.00    10   0.0000    0.00 delim
+  0.0  0.00  0.00   0.00  0.00   0.00  0.00     7   0.0000    0.00 spacer
+  0.0  0.00  0.00   0.00  0.00   0.00  0.00     9   0.0000    0.00 hdelim
+  0.0  0.00  0.02   0.00  0.01   0.00  0.00     2   0.0000    0.01 download_link
+  0.0  0.00  0.00   0.00  0.00   0.00  0.00     1   0.0000    0.00 mirror_provider_url
+  0.0  0.00  0.00   0.00  0.00   0.00  0.00     1   0.0000    0.00 mirror_provider
+  0.0  0.00  0.00   0.00  0.00   0.00  0.00     1   0.0000    0.00 strftime
+  0.0  0.00  0.00   0.00  0.00   0.00  0.00     1   0.0000    0.00 have_stats
+  0.0  0.00  0.00   0.00  0.00   0.00  0.00     1   0.0000    0.00 commonfooter
+  0.0  0.00  0.00   0.00  0.00   0.00  0.00     2   0.0000    0.00 strrchr
+  0.0  0.01  0.01   0.00  0.00   0.00  0.00     2   0.0000    0.00 filesize
+
+This sorts output based on the usertime spent in subroutines, and ommits a call tree.  If
+we added a -t
+
+10:38:30(george@ballista)[~/pear/PECL/apd]> pprofp -u -t /tmp/pprof.23424
+
+...
+
+We would also get a call graph for the function.  Which is often very long.
+
+
+
+
+How to use PHP-APD in your scripts (old style)
 ----------------------------------------------------------------------------- *
 
     In your PHP script, add the following line:
@@ -138,57 +256,6 @@ Trace Begun at Fri Aug 10 16:37:45 2001
 Process Pid (31994)
 Trace Ended at Fri Aug 10 16:37:45 2001
 ---------------------------------------------------------------------------
-
-PProf Output
----------------------------------------------------------------------------
-PProf tracing produces output similair to gprof or Perl's Devel::DProf.  In 
-the release edition of this software an interpreting utility similair to drofpp
-will be provided for generating various outputs from the dump file.  To enable
-pprof dumps, simply call
-
-<? apd_set_pprof_trace(); ?>
-
-at the top of your page.  setting this outside of the main block may result in
-interpretation errors.  Calling this function will write to a file
-
-    <apd.dumpdir>/pprof.<pid>
-
-The output for a script like:
-
-<?
-    apd_set_pprof_trace();
-    function hellosleepyhead() {
-        sleep(1);
-        echo "Hello World<BR>";
-    }
-    hellosleepyhead();
-?>
-
-
-looks like:
-
-& 1 apd_set_session_trace
-+ 1
-- 1
-@ 0 0 0
-& 2 hellosleepyhead
-+ 2
-@ 0 0 0
-& 3 sleep
-+ 3
-@ 0 0 101
-- 3
-@ 0 0 0
-- 2
-
-
-& declares a new function and it's index for the trace.  + shows a function 
-being entered. - shows a function being exited. @ shows a time elapsed in 
-the form  
-
-@ process_user_clock_t process_system_clock_t process_real_clock_t
-
-
 
 
 Implemented Debugging Functions
