@@ -1,10 +1,11 @@
 #!/usr/bin/env perl
 
 use Getopt::Std;
+my $datafile = shift;
 
 getopts('ahltTO:vz', \%opt);
 
-if(exists $opt{'h'}) {
+if(exists $opt{'h'} || !$datafile) {
     usage();
 }
 $opt{'O'} ||= 15;
@@ -114,11 +115,6 @@ while(<DATA>) {
 }
 parse_info('FOOTER');
 
-print "\n\n
-         Real	      User        System           secs/    cumm
-%Time (excl/cumm)  (excl/cumm)  (excl/cumm) Calls  call    s/call Name
-----------------------------------------------------------------------\n";
-
 sub by_time {
 	($stimes->{$b} + $utimes->{$b}) <=> ($stimes->{$a} + $utimes->{$a});
 }
@@ -142,6 +138,22 @@ $sort = 'by_avgcpu' if exists $opt{v};
 
 
 my $l = 0;
+
+$cfg{hz} = 1;
+printf "
+Total Elapsed Time = %4.2f
+Total System Time  = %4.2f
+Total User Time    = %4.2f
+", $cfg{'total_wall'}/$cfg{'hz'},
+   $cfg{'total_sys'}/$cfg{'hz'},
+   $cfg{'total_user'}/$cfg{'hz'};
+
+print "\n\n
+         Real         User        System           secs/    cumm
+%Time (excl/cumm)  (excl/cumm)  (excl/cumm) Calls  call    s/call Name
+----------------------------------------------------------------------\n";
+ 
+
 foreach $j (sort $sort  keys %symbol_hash) {
     last if $l++ > $opt{'O'};
     $pcnt = ($stimes->{$j} + $utimes->{$j})/($utotal + $stotal + $itotal);
@@ -165,7 +177,6 @@ foreach $j (sort $sort  keys %symbol_hash) {
     $~ = FULL_STAT;
     write;
 }
-
 format FULL_STAT =
 ^>>>  ^>>>> ^>>>> ^>>>> ^>>>> ^>>>> ^>>>>   ^>>>>  ^>>>>   ^>>>>  ^<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 $pcnt, $rsecs, $c_rsecs, $usecs, $c_usecs, $ssecs, $c_ssecs, $ncalls, $percall, $cpercall, $name
