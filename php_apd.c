@@ -410,6 +410,8 @@ static void traceFunctionEntry(
 		apd_efree(memline);
 		memline = NULL;
 #endif
+/*  This breaks under 4.0.8-dev and didn't work well under 4.0.6
+
 		apd_indent(&memline, 2*(print_indent + 7));
 		if(APD_GLOBALS(last_mem_header) == NULL) {
 			APD_GLOBALS(last_mem_header) = AG(head);
@@ -441,6 +443,7 @@ static void traceFunctionEntry(
 		apd_efree(tmp);
 		fprintf(APD_GLOBALS(dump_file), "%s", memline);
 		apd_efree(memline);
+*/
 	}
 	print_indent++;
 	apd_stack_push(stack, entry);
@@ -518,9 +521,7 @@ zend_module_entry apd_module_entry = {
 	PHP_RINIT(apd),
 	PHP_RSHUTDOWN(apd),
 	PHP_MINFO(apd),
-	NULL,
-	NULL,
-	STANDARD_MODULE_PROPERTIES_EX
+	STANDARD_MODULE_PROPERTIES
 };
 zend_apd_globals apd_globals;
 
@@ -570,15 +571,13 @@ PHP_MINIT_FUNCTION(apd)
 
 PHP_RINIT_FUNCTION(apd)
 {
-
 	gettimeofday(&APD_GLOBALS(req_begin), NULL);
 //	gettimeofday(&APD_GLOBALS(last_call), NULL);
-	APD_GLOBALS(last_mem_header) = AG(head)->pLast;
-	APD_GLOBALS(last_pmem_header) = AG(phead)->pLast;
+//	APD_GLOBALS(last_mem_header) = AG(head)->pLast;
+//	APD_GLOBALS(last_pmem_header) = AG(phead)->pLast;
 	APD_GLOBALS(dump_file) = stderr;
 	APD_GLOBALS(bitmask) = 0;
 	initializeTracer();
-	
 	return SUCCESS;
 }
 
@@ -1109,7 +1108,7 @@ ZEND_DLEXPORT void fcallEnd(zend_op_array *op_array)
 // Zend Extension Support
 // ---------------------------------------------------------------------------
 
-ZEND_DLEXPORT int apd_zend_startup(zend_extension *extension)
+int apd_zend_startup(zend_extension *extension)
 {
 	CG(extended_info) = 1;  // XXX: this is ridiculous
 	return zend_startup_module(&apd_module_entry);
