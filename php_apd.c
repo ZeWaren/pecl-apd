@@ -705,6 +705,11 @@ PHP_FUNCTION(apd_cluck)
         WRONG_PARAM_COUNT;
     }
 
+	zend_printf("%s at %s line %d<br>\n", 
+				errstr?Z_STRVAL_PP(errstr):"clucked",
+				zend_get_executed_filename(TSRMLS_C), 
+				zend_get_executed_lineno(TSRMLS_C));
+
     stack = (CallStack*) APD_GLOBALS(stack);
     elements = apd_stack_toarray(stack);
     numElements = apd_stack_getsize(stack);
@@ -757,6 +762,11 @@ PHP_FUNCTION(apd_croak)
     stack = (CallStack*) APD_GLOBALS(stack);
     elements = apd_stack_toarray(stack);
     numElements = apd_stack_getsize(stack);
+
+	zend_printf("%s at %s line %d<br>\n", 
+				errstr?Z_STRVAL_PP(errstr):"croaked",
+				zend_get_executed_filename(TSRMLS_C), 
+				zend_get_executed_lineno(TSRMLS_C));
 
     for (i = numElements-2; i >= 0; i--) {
         CallStackEntry* stackEntry;
