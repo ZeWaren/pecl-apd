@@ -4,7 +4,7 @@
 ARG_ENABLE("apd", "Alternative PHP Debugger", "no");
 
 if (PHP_APD != "no") {
-	EXTENSION('apd', 'php_apd.c apd_lib.c apd_array.c apd_dummary.c win32compat.c');
+	EXTENSION('apd', 'php_apd.c apd_lib.c apd_array.c apd_summary.c win32compat.c');
 	AC_DEFINE('HAVE_APD', 1);
 }
 
