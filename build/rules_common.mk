@@ -23,10 +23,11 @@ COMMON_FLAGS = $(DEFS) $(INCLUDES) $(EXTRA_INCLUDES) $(CPPFLAGS)
 COMPILE      = $(CC)  $(COMMON_FLAGS) $(CFLAGS) $(EXTRA_CFLAGS)
 CXX_COMPILE  = $(CXX) $(COMMON_FLAGS) $(CXXFLAGS) $(EXTRA_CXXFLAGS)
 
-SHARED_COMPILE = $(SHARED_LIBTOOL) --mode=compile $(COMPILE) -c $< && touch $@
-CXX_SHARED_COMPILE = $(SHARED_LIBTOOL) --mode=compile $(CXX_COMPILE) -c $< && touch $@
+SHARED_COMPILE = $(SHARED_LIBTOOL) --mode=compile $(CC) $(COMMON_FLAGS) $(CFLAGS_CLEAN) -prefer-pic $(EXTRA_CFLAGS) -c $< && touch $@
+CXX_SHARED_COMPILE = $(SHARED_LIBTOOL) --mode=compile $(CXX) $(COMMON_FLAGS) $(CXXFLAGS_CLEAN) -prefer-pic $(EXTRA_CXXFLAGS) -c $< && touch $@
 
 LINK = $(LIBTOOL) --mode=link $(COMPILE) $(LDFLAGS) -o $@
+LINK_CLEAN = $(LIBTOOL) --mode=link $(CC) $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS) $(LDFLAGS) -o $@
 
 mkinstalldirs = $(top_srcdir)/build/shtool mkdir -p
 INSTALL = $(top_srcdir)/build/shtool install -c

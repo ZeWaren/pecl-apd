@@ -16,7 +16,7 @@
 #  | Authors: Sascha Schumann <sascha@schumann.cx>                        |
 #  +----------------------------------------------------------------------+
 #
-# $Id: fastgen.sh,v 1.2 2001-08-27 20:29:39 george Exp $ 
+# $Id: fastgen.sh,v 1.3 2001-11-18 01:14:28 george Exp $ 
 #
 
 srcdir=$1
@@ -34,7 +34,7 @@ top_builddir=`pwd`
 if test "$mkdir_p" = "yes"; then
   mkdir_p="mkdir -p"
 else
-  mkdir_p="$top_srcdir/helpers/mkdir.sh"
+  mkdir_p="$top_srcdir/build/shtool mkdir -p"
 fi
 
 if test "$bsd_makefile" = "yes"; then
