@@ -1,5 +1,5 @@
 #!/usr/bin/env php 
-<?
+<?php
 require "Console/Getopt.php";
 $con = new Console_Getopt;
 $args = $con->readPHPArgv();
