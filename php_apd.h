@@ -37,6 +37,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/time.h>
+#include <sys/times.h>
 #include <unistd.h>
 #else /* windows */
 /* these are from ext/socket -- probably worth just copying the files into apd? */
@@ -65,6 +66,7 @@ PHP_FUNCTION(override_function);
 PHP_FUNCTION(rename_function);
 PHP_FUNCTION(dump_function_table);
 PHP_FUNCTION(apd_set_session_trace);
+PHP_FUNCTION(apd_set_pprof_trace);
 PHP_FUNCTION(apd_set_session_trace_socket);
 PHP_FUNCTION(apd_set_session);
 
@@ -94,19 +96,26 @@ extern zend_module_entry apd_module_entry;
 #define TIMING_TRACE 32
 #define SUMMARY_TRACE 64
 #define ERROR_TRACE 128
+#define PROF_TRACE 256
 
 ZEND_BEGIN_MODULE_GLOBALS(apd)
 	void* stack;
 	HashTable* summary;
 	char* dumpdir; /* directory for dumping seesion traces to */
 	FILE* dump_file; /* FILE for dumping session traces to */
-        int dump_sock_id; /* Socket for dumping data to */
+    FILE* pprof_file; /* File for profiling output */
+    int dump_sock_id; /* Socket for dumping data to */
 	struct timeval req_begin;  /* Time the request began */
+	struct timeval lasttime;  /* Last time recorded */
+	clock_t lastclock;  /* Last time recorded */
+	struct tms lasttms;  /* Last time recorded */
+    int index;                /* current index of functions for pprof tracing */
 	long bitmask;              /* Bitmask for determining what gets logged */
+    long pproftrace;           /* Flag for whether we are doing profiling */
 	void* last_mem_header;		/* tail of persistent zend_mem_header list */
 	void* last_pmem_header;		/* tail of persistent zend_mem_header list */
-        int interactive_mode;     /* is interactive mode on */
-        int ignore_interactive;   /* ignore interactive mode flag for executing php from the debugger*/
+    int interactive_mode;     /* is interactive mode on */
+    int ignore_interactive;   /* ignore interactive mode flag for executing php from the debugger*/
 	int allocated_memory;
 ZEND_END_MODULE_GLOBALS(apd)
 

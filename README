@@ -138,6 +138,57 @@ Process Pid (31994)
 Trace Ended at Fri Aug 10 16:37:45 2001
 ---------------------------------------------------------------------------
 
+PProf Output
+---------------------------------------------------------------------------
+PProf tracing produces output similair to gprof or Perl's Devel::DProf.  In 
+the release edition of this software an interpreting utility similair to drofpp
+will be provided for generating various outputs from the dump file.  To enable
+pprof dumps, simply call
+
+<? apd_set_pprof_trace(); ?>
+
+at the top of your page.  setting this outside of the main block may result in
+interpretation errors.  Calling this function will write to a file
+
+    <apd.dumpdir>/pprof.<pid>
+
+The output for a script like:
+
+<?
+    apd_set_pprof_trace();
+    function hellosleepyhead() {
+        sleep(1);
+        echo "Hello World<BR>";
+    }
+    hellosleepyhead();
+?>
+
+
+looks like:
+
+& 1 apd_set_session_trace
++ 1
+- 1
+@ 0 0 0   0.000121
+& 2 hellosleepyhead
++ 2
+@ 0 0 0   0.000047
+& 3 sleep
++ 3
+@ 0 0 101 1.007088
+- 3
+@ 0 0 0 1.007287
+- 2
+
+
+& declares a new function and it's index for the trace.  + shows a function 
+being entered. - shows a function being exited. @ shows a time elapsed in 
+the form  
+
+@ process_user_clock_t process_system_clock_t process_real_clock_t wall_seconds
+
+
+
 
 Implemented Debugging Functions
 ----------------------------------------------------------------------------- *

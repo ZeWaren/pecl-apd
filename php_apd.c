@@ -22,6 +22,7 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <sys/types.h>
+#include <sys/times.h>
 #include <sys/stat.h>
 
 #ifdef PHP_WIN32
@@ -64,6 +65,7 @@ function_entry apd_functions[] = {
 	PHP_FE(rename_function, NULL)
 	PHP_FE(dump_function_table, NULL)
 	PHP_FE(apd_set_session_trace, NULL)
+	PHP_FE(apd_set_pprof_trace, NULL)
         PHP_FE(apd_set_session_trace_socket, NULL)
         PHP_FE(apd_set_session, NULL)
         PHP_FE(apd_breakpoint, NULL)
@@ -135,6 +137,35 @@ void apd_dump_fprintf(const char* fmt, ...)
          
 }
 
+void apd_pprof_fprintf(const char* fmt, ...)
+{
+    va_list args;
+    char* newStr;
+
+    TSRMLS_FETCH();
+    if(!APD_GLOBALS(pproftrace)) {
+         zend_error(E_ERROR, "pproftrace is unset");
+        return;
+    }
+    va_start(args, fmt);
+    newStr = apd_sprintf_real(fmt, args);
+    va_end(args);
+    if (APD_GLOBALS(pprof_file) != NULL) {
+        fprintf(APD_GLOBALS(pprof_file), newStr);
+    } 
+/*
+    else if ( APD_GLOBALS(prof_sock_id) > 0)  {
+#ifndef PHP_WIN32
+        write(APD_GLOBALS(pprof_sock_id), newStr, strlen (newStr) + 1);
+#else
+    send(APD_GLOBALS(pprof_sock_id), newStr, strlen (newStr) + 1, 0);
+#endif
+    }
+*/
+    apd_efree(newStr);
+
+}
+
 
 // ---------------------------------------------------------------------------------
 // Interactive Mode
@@ -146,11 +177,10 @@ void apd_interactive () {
         char *tmpbuf=NULL,*tmp=NULL;
         char *compiled_string_description;
         zval retval;
-        TSRMLS_FETCH();
-
         int length = 1024; /* the maximum command length that can be accepted! */
         int recv_len;
     
+        TSRMLS_FETCH();
         if (APD_GLOBALS(interactive_mode) == 0) return;
         if (APD_GLOBALS(ignore_interactive) == 1) return;
         /* only available to sockets */
@@ -210,6 +240,7 @@ void apd_interactive () {
 typedef enum { CALL_ARG_VAR, CALL_ARG_REF, CALL_ARG_LITERAL } CallArgType;
 
 typedef struct summary_t {
+    int index;
 	int	calls;
 	int totalTime;
 } summary_t;
@@ -336,7 +367,7 @@ static CallStackEntry* mkCallStackEntry(
 	entry->args         = 0;
 	entry->filename     = apd_estrdup(filename);
 	entry->lineNum      = lineNum;
-	if(APD_GLOBALS(bitmask) & TIMING_TRACE) {
+	if(APD_GLOBALS(bitmask) & TIMING_TRACE || APD_GLOBALS(pproftrace)) {
 		gettimeofday(&entry->func_begin, NULL);
 	}
 	else {
@@ -457,6 +488,7 @@ static void traceFunctionEntry(
 {
 	CallStack* stack;
 	CallStackEntry* entry;
+	struct timeval now;
 	struct timeval elapsed;
 	int i = 0;
 	char *line;
@@ -472,8 +504,32 @@ static void traceFunctionEntry(
 	{
 		apd_indent(&line, 2*print_indent);
 	}
-  if(APD_GLOBALS(bitmask) & TIMING_TRACE)
-  {
+    if(APD_GLOBALS(pproftrace))
+    {
+        struct timeval elapsed;
+        struct timeval now;
+        struct tms walltimes;
+        clock_t clock;
+        if(APD_GLOBALS(index) > 1) {
+            timevaldiff(&(entry->func_begin), &APD_GLOBALS(lasttime), &elapsed);
+            APD_GLOBALS(lasttime) = entry->func_begin;
+        } else {
+            gettimeofday(&now, NULL);
+            timevaldiff(&now, &APD_GLOBALS(lasttime), &elapsed);
+            APD_GLOBALS(lasttime) = now;
+        }
+        clock = times(&walltimes);
+        APD_GLOBALS(lasttime) = entry->func_begin;
+        apd_pprof_fprintf("@ %d %d %d %3d.%06d\n", 
+            walltimes.tms_utime - APD_GLOBALS(lasttms).tms_utime, 
+            walltimes.tms_stime - APD_GLOBALS(lasttms).tms_stime, 
+            clock - APD_GLOBALS(lastclock),
+            elapsed.tv_sec, elapsed.tv_usec);
+        APD_GLOBALS(lasttms) = walltimes;
+        APD_GLOBALS(lastclock) = clock;
+    }
+    if(APD_GLOBALS(bitmask) & TIMING_TRACE)
+    {
   		char *tmp;
 		int curSize;
 		timevaldiff(&(entry->func_begin), &APD_GLOBALS(req_begin), &elapsed);
@@ -483,7 +539,7 @@ static void traceFunctionEntry(
 		apd_strcat(&tmp, &curSize, line);
 		apd_efree(line);
 		line = tmp;
-  }
+    }
 	if(APD_GLOBALS(bitmask) & FUNCTION_TRACE) {
 		char *tmp;
 		int curSize;
@@ -514,6 +570,22 @@ static void traceFunctionEntry(
 			apd_efree(argline);
 		}
 	}
+    if(APD_GLOBALS(pproftrace)) {
+        summary_t *summaryStats;
+        if ( zend_hash_find(APD_GLOBALS(summary), entry->functionName, strlen(entry->functionName) + 1, (void *) &summaryStats) == SUCCESS )
+        {
+            apd_pprof_fprintf("+ %d\n", summaryStats->index);
+        }
+        else {
+            summaryStats = (summary_t *) emalloc(sizeof(summary_t));
+            summaryStats->calls = 1;
+            summaryStats->index = ++APD_GLOBALS(index);
+            summaryStats->totalTime = 0;
+            zend_hash_add(APD_GLOBALS(summary), entry->functionName, strlen(entry->functionName) + 1, summaryStats, sizeof(summary_t), NULL);
+            apd_pprof_fprintf("& %d %s\n", summaryStats->index, entry->functionName);
+            apd_pprof_fprintf("+ %d\n", summaryStats->index);
+        }
+    }
 	if(APD_GLOBALS(bitmask) & MEMORY_TRACE) {
 		int new_allocated_memory;
 		int new_allocated_pmemory;
@@ -581,6 +653,7 @@ static void traceFunctionExit()
 	char* tmp;
 	struct timeval now;
 	struct timeval elapsed;
+	struct timeval profelapsed;
 	struct timeval diff;
 	TSRMLS_FETCH();
 
@@ -595,19 +668,36 @@ static void traceFunctionExit()
 	{
 		apd_indent(&line, 2*print_indent);
 	}
-	if(APD_GLOBALS(bitmask) & TIMING_TRACE)
+	if(APD_GLOBALS(bitmask) & TIMING_TRACE || APD_GLOBALS(pproftrace))
 	{
     int curSize;
+    struct tms walltimes;
+    clock_t clock;
 
 	gettimeofday(&now, NULL);
     timevaldiff(&now, &APD_GLOBALS(req_begin), &elapsed);
+    timevaldiff(&now, &APD_GLOBALS(lasttime), &profelapsed);
+    APD_GLOBALS(lasttime) = now;
+    clock = times(&walltimes);
+    
+    if (APD_GLOBALS(index) > 1) {
+        APD_GLOBALS(lasttime) = entry->func_begin;
+        apd_pprof_fprintf("@ %d %d %d %d.%06d\n", 
+            walltimes.tms_utime - APD_GLOBALS(lasttms).tms_utime, 
+            walltimes.tms_stime - APD_GLOBALS(lasttms).tms_stime,
+            clock - APD_GLOBALS(lastclock),
+            profelapsed.tv_sec, profelapsed.tv_usec);
+    }
+    APD_GLOBALS(lasttms) = walltimes;
+    APD_GLOBALS(lastclock) = clock;
     tmp = apd_sprintf("(%3d.%06d): ", elapsed.tv_sec, elapsed.tv_usec);
 	curSize = strlen(tmp);
 	apd_strcat(&tmp, &curSize, line);
 	apd_efree(line);
 	line = tmp;
   }
-  if(APD_GLOBALS(bitmask) & FUNCTION_TRACE) {
+  if(APD_GLOBALS(bitmask) & FUNCTION_TRACE || APD_GLOBALS(pproftrace))
+  {
   	char *tmp;
 	int curSize;
 	if(entry->func_begin.tv_sec) {
@@ -616,21 +706,24 @@ static void traceFunctionExit()
 	else {
 		timevaldiff(&now, &APD_GLOBALS(req_begin), &diff);
 	}
-	if(APD_GLOBALS(bitmask) & SUMMARY_TRACE) {
+	if(APD_GLOBALS(bitmask) & SUMMARY_TRACE || APD_GLOBALS(pproftrace)) {
 		summary_t *summaryStats;
 		if ( zend_hash_find(APD_GLOBALS(summary), entry->functionName, strlen(entry->functionName) + 1, (void *) &summaryStats) == SUCCESS )
 		{
 			summaryStats->calls += 1;
 			summaryStats->totalTime += (diff.tv_sec * 100000 + diff.tv_usec);
+            apd_pprof_fprintf("- %d\n", summaryStats->index);
 		}
 		else {
 			summaryStats = (summary_t *) emalloc(sizeof(summary_t));
 			summaryStats->calls = 1;
+            summaryStats->index = ++APD_GLOBALS(index);
 			summaryStats->totalTime = (diff.tv_sec * 100000 + diff.tv_usec);
 			zend_hash_add(APD_GLOBALS(summary), entry->functionName, strlen(entry->functionName) + 1, summaryStats, sizeof(summary_t), NULL);
+            apd_pprof_fprintf("- %d\n", summaryStats->index);
 		}
 	}
-        tmp = apd_sprintf("%s() at %s:%d returned.  Elapsed (%d.%06d)\n", 
+    tmp = apd_sprintf("%s() at %s:%d returned.  Elapsed (%d.%06d)\n", 
                                 entry->functionName, 
                                 zend_get_executed_filename(TSRMLS_C),
                                 zend_get_executed_lineno(TSRMLS_C),
@@ -775,7 +868,9 @@ PHP_INI_END()
 // ---------------------------------------------------------------------------
 
 static void php_apd_init_globals(zend_apd_globals *apd_globals) {
+    struct tms walltimes;
 	memset(apd_globals, 0, sizeof(zend_apd_globals));
+    
 }
 
 PHP_MINIT_FUNCTION(apd)
@@ -802,11 +897,13 @@ PHP_RINIT_FUNCTION(apd)
 //	APD_GLOBALS(last_mem_header) = AG(head)->pLast;
 //	APD_GLOBALS(last_pmem_header) = AG(phead)->pLast;
 	APD_GLOBALS(dump_file) = stderr;
-        APD_GLOBALS(dump_sock_id) = 0;
+    APD_GLOBALS(dump_sock_id) = 0;
 	APD_GLOBALS(bitmask) = 0;
 	APD_GLOBALS(summary) = (HashTable*) emalloc(sizeof(HashTable));
-        APD_GLOBALS(interactive_mode) = 0;
-        APD_GLOBALS(ignore_interactive) = 0;          
+    APD_GLOBALS(interactive_mode) = 0;
+    APD_GLOBALS(ignore_interactive) = 0;  
+    APD_GLOBALS(lastclock) = times(&APD_GLOBALS(lasttms));
+    gettimeofday(&APD_GLOBALS(lasttime), NULL);
 	zend_hash_init(APD_GLOBALS(summary), 0, NULL, NULL, 0);
 	initializeTracer();
 	return SUCCESS;
@@ -836,12 +933,14 @@ PHP_RSHUTDOWN_FUNCTION(apd)
 	if (APD_GLOBALS(dump_file)) {
 		fclose(APD_GLOBALS(dump_file));
 	}
-        if (APD_GLOBALS(dump_sock_id)) {
-            close(APD_GLOBALS(dump_sock_id));
-            /* bit academic - but may as well */
-            APD_GLOBALS(dump_sock_id)=0;
-        }
-       
+    if(APD_GLOBALS(pprof_file)) {
+        fclose(APD_GLOBALS(pprof_file));
+    }
+    if (APD_GLOBALS(dump_sock_id)) {
+        close(APD_GLOBALS(dump_sock_id));
+        /* bit academic - but may as well */
+        APD_GLOBALS(dump_sock_id)=0;
+    }
 	zend_hash_destroy(APD_GLOBALS(summary));
 	efree(APD_GLOBALS(summary));
 	return SUCCESS;
@@ -1165,8 +1264,8 @@ void apd_dump_session_start() {
         apd_dump_fprintf("Trace Begun at %s", ctime(&starttime));
         apd_dump_fprintf("---------------------------------------------------------------------------\n");
         apd_dump_fprintf("(  0.000000): apd_set_session_trace called at %s:%d\n", zend_get_executed_filename(TSRMLS_C), zend_get_executed_lineno(TSRMLS_C)); 
-
 }
+
 
 
 PHP_FUNCTION(apd_set_session_trace) 
@@ -1219,6 +1318,58 @@ PHP_FUNCTION(apd_set_session_trace)
 	efree(path);
         apd_dump_session_start();
 }	
+
+void apd_pprof_session_start() {
+        apd_pprof_fprintf("& 1 apd_set_session_trace\n+ 1\n");
+
+}
+
+PHP_FUNCTION(apd_set_pprof_trace)
+{
+    int issock =0;
+    int socketd = 0;
+    int path_len;
+    char *dumpdir;
+    char *path;
+    zval  **z_dumpdir;
+    TSRMLS_FETCH();
+
+    if(ZEND_NUM_ARGS() > 1 )
+    {
+        ZEND_WRONG_PARAM_COUNT();
+    }
+    if(ZEND_NUM_ARGS() == 0)
+    {
+        if(APD_GLOBALS(dumpdir)) {
+            dumpdir = APD_GLOBALS(dumpdir);
+        }
+        else {
+            zend_error(E_WARNING, "%s() no dumpdir specified",
+                       get_active_function_name(TSRMLS_C));
+            RETURN_FALSE;
+        }
+        APD_GLOBALS(pproftrace) = 1;
+    }
+    else {
+        if(zend_get_parameters_ex(1, &z_dumpdir) == FAILURE)
+        {
+            ZEND_WRONG_PARAM_COUNT();
+        }
+        APD_GLOBALS(pproftrace) = 1;
+
+        convert_to_string_ex(z_dumpdir);
+        dumpdir = Z_STRVAL_PP(z_dumpdir);
+    }
+    path_len = strlen(dumpdir) + 1 + strlen("apd_dump_") + 5;
+    path = (char *) emalloc((path_len + 1)* sizeof(char) );
+    snprintf(path, path_len + 1, "%s/pprof.%05d", dumpdir, getpid());
+    if((APD_GLOBALS(pprof_file) = fopen(path, "a")) == NULL) {
+        zend_error(E_ERROR, "%s() failed to open %s for tracing", get_active_function_name(TSRMLS_C), path);
+    }  
+    efree(path);
+    apd_pprof_session_start();
+}  
+
 
 /* {{{ proto bool apd_set_session_trace_socket(string ip_or_filename, int domain, int port, int mask)
    Connects to a socket either unix domain or tcpip and sends data there*/
