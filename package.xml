@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE package SYSTEM "../../package.dtd">
+<!-- do not use the "Type" attribute here, that one is only for
+     generated package.xml files -->
+<package version="0.2">
+    <name>APD</name>
+    <summary>Allows inline inclusion of function definitions in C</summary>
+    <description>
+APD is a fully feature profiler/debugger that is loaded as a zend_extension.  It aims to be an analog of C's gprof or Perl's Devel::DProf.
+    </description>
+    <license>PHP License</license>
+    <maintainers>
+        <maintainer>
+        <user>gschlossnagle</user>
+        <name>George Schlossnagle</name>
+        <email>george@omniti.com</email>
+        </maintainer>
+    </maintainers>
+    <release>
+        <version>0.2</version>
+        <state>stable</state>
+        <date>2002-10-15</date>
+    </release>
+</package>
