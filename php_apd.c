@@ -55,7 +55,9 @@
 ZEND_DLEXPORT zend_op_array* apd_compile_file(zend_file_handle* TSRMLS_DC);
 ZEND_DLEXPORT zend_op_array* (*old_compile_file)(zend_file_handle* TSRMLS_DC);
 ZEND_DLEXPORT void apd_execute(zend_op_array *op_array TSRMLS_DC);
+#if  ZEND_EXTENSION_API_NO > 20020731
 ZEND_DLEXPORT void apd_execute_internal(zend_execute_data *execute_data_ptr, int return_value_used TSRMLS_DC);
+#endif
 ZEND_DLEXPORT void (*old_execute)(zend_op_array *op_array TSRMLS_DC);
 
 /* This comes from php install tree. */
@@ -662,6 +664,7 @@ ZEND_API void apd_execute(zend_op_array *op_array TSRMLS_DC)
         apd_interactive();
 }
 
+#if  ZEND_EXTENSION_API_NO > 20020429
 ZEND_API void apd_execute_internal(zend_execute_data *execute_data_ptr, int return_value_used TSRMLS_DC) 
 {
 	char *fname = NULL;
@@ -709,6 +712,7 @@ ZEND_API void apd_execute_internal(zend_execute_data *execute_data_ptr, int retu
 	apd_efree(fname);
         apd_interactive();
 }
+#endif
 	
 
 
