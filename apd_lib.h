@@ -51,8 +51,8 @@ extern char* apd_strtac(char **dst, char *src);
 
 /* resource access routines */
 
-extern int __apd_dump_regular_resources(zval **array);
-extern int __apd_dump_persistent_resources(zval **array);
+extern int __apd_dump_regular_resources(zval *array TSRMLS_DC);
+extern int __apd_dump_persistent_resources(zval *array TSRMLS_DC);
 
 /* timeval functions */
 extern void timevaldiff(struct timeval* a, struct timeval* b, struct timeval* result);

@@ -19,9 +19,12 @@
 #include <errno.h>
 #include "zend.h"
 #include "php.h"
-#include "zend_hash.h"
+#include "zend.h"
+
+#ifndef PHP_WIN32
 #include <sys/time.h>
 #include <unistd.h>
+#endif
 
 #undef DEBUG
 
@@ -295,28 +298,38 @@ char* apd_indent(char **dst, int spaces)
 	return *dst;
 }	
 	
-int __apd_dump_regular_resources(zval **arr) {
+int __apd_dump_regular_resources(zval *arr TSRMLS_DC) {
 	Bucket *p;
 	HashTable *ht;
 
-	if(array_init(*arr) == FAILURE) {
+	if(array_init(arr) == FAILURE) {
+		fprintf(stderr, "failed\n");
 		return 0;
 	}
 	ht = &(EG(regular_list));
 	p = ht->pListHead;
 	while(p != NULL) {
 		list_entry *le;
+		char *resource_name = NULL;
 		le = p->pData;
-		add_index_string(*arr, p->h, zend_rsrc_list_get_rsrc_type(p->h), 1);
+		resource_name = zend_rsrc_list_get_rsrc_type(p->h TSRMLS_CC);
+		if (resource_name != NULL) {
+			add_index_string(arr, p->h, zend_rsrc_list_get_rsrc_type(p->h TSRMLS_CC), 1);
+		} else {
+			resource_name = apd_emalloc(256);
+			snprintf(resource_name, 255, "APD: unknown resource type %d", p->h);
+			add_index_string(arr, p->h, resource_name, 1);
+			apd_efree(resource_name);
+		}
 		p = p->pListNext;
 	}
 	return 0;
 }
 
-int __apd_dump_persistent_resources(zval **arr) {
+int __apd_dump_persistent_resources(zval *arr TSRMLS_DC) {
 	Bucket *p;
 	HashTable *ht;
-	if(array_init(*arr) == FAILURE) {
+	if(array_init(arr) == FAILURE) {
 		return 0;
 	}
 	ht = &(EG(persistent_list));
@@ -324,7 +337,7 @@ int __apd_dump_persistent_resources(zval **arr) {
 	while( p != NULL) {
 		list_entry *le;
 		le =p->pData;
-		add_next_index_stringl(*arr, p->arKey, p->nKeyLength, 1);
+		add_next_index_stringl(arr, p->arKey, p->nKeyLength, 1);
 		p = p->pListNext;
 	}
 	return 0;
