@@ -68,6 +68,7 @@ extern zend_module_entry apd_module_entry;
 #define MEMORY_TRACE 16
 #define TIMING_TRACE 32
 #define SUMMARY_TRACE 64
+#define ERROR_TRACE 128
 
 ZEND_BEGIN_MODULE_GLOBALS(apd)
 	void* stack;
