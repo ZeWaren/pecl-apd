@@ -875,9 +875,9 @@ PHP_FUNCTION(apd_set_session_trace)
 	path = (char *) emalloc((path_len + 1)* sizeof(char) );
 	snprintf(path, path_len + 1, "%s/apd_dump_%05d", dumpdir, getpid());
 	if((APD_GLOBALS(dump_file) = php_fopen_wrapper(path, "a",  IGNORE_URL, &issock, &socketd, NULL)) == NULL) {
-		zend_error(E_ERROR, "FAiled to open %s for tracing", path);
+		zend_error(E_ERROR, "Failed to open %s for tracing", path);
 	}	
-//	zend_error(E_WARNING, "opened %s for tracing", path);
+	efree(path);
 	starttime = time(0);
 	fprintf(APD_GLOBALS(dump_file), "\n\nAPD - Advanced PHP Debugger Trace File\n");
 	fprintf(APD_GLOBALS(dump_file), "---------------------------------------------------------------------------\n");
