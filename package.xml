@@ -3,7 +3,7 @@
      generated package.xml files -->
 <package>
     <name>apd</name>
-    <summary>Allows inline inclusion of function definitions in C</summary>
+    <summary>A fully featured engine-level profiler/debugger</summary>
     <description>
 APD is a fully feature profiler/debugger that is loaded as a zend_extension.  It aims to be an analog of C's gprof or Perl's Devel::DProf.
     </description>
@@ -16,11 +16,11 @@ APD is a fully feature profiler/debugger that is loaded as a zend_extension.  It
         </maintainer>
     </maintainers>
      <release>
-        <version>0.3p1</version>
+        <version>0.3p2</version>
         <date>2002-10-29</date>
         <state>beta</state>
         <notes>
-                Enabled compile on non 4.3 systems
+            Doc fix, minor performance improvements
         </notes>
     </release>
     <filelist>
@@ -65,5 +65,13 @@ APD is a fully feature profiler/debugger that is loaded as a zend_extension.  It
             pointer instead of the engine hooks for tracing.
         </notes>
     </release>
-      </changelog>  
+     <release>
+        <version>0.3p1</version>
+        <date>2002-10-29</date>
+        <state>beta</state>
+        <notes>
+                Enabled compile on non 4.3 systems
+        </notes>
+    </release>
+    </changelog>  
 </package>
