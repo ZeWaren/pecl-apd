@@ -107,6 +107,10 @@ SOURCE=.\opcode.c
 
 SOURCE=.\php_apd.c
 # End Source File
+# Begin Source File
+
+SOURCE=.\win32compat.c
+# End Source File
 # End Group
 # Begin Group "Header Files"
 
@@ -126,6 +130,10 @@ SOURCE=.\opcode.h
 # Begin Source File
 
 SOURCE=.\php_apd.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\win32compat.h
 # End Source File
 # End Group
 # End Target
