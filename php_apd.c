@@ -377,6 +377,7 @@ char *apd_get_active_function_name(zend_op_array *op_array TSRMLS_DC)
 {
     char *funcname = NULL;
     int curSize = 0;
+	zend_execute_data *execd;
     execd = EG(current_execute_data);
     if(execd) {
         if(execd->function_state.function->common.function_name) {
@@ -430,6 +431,7 @@ char *apd_get_active_function_name(zend_op_array *op_array TSRMLS_DC)
         if(zend_hash_find(EG(active_symbol_table), "this", sizeof("this"),
                 (void **) &object_ptr_ptr)!=FAILURE)
         {
+				char *tmp;
                 zend_class_entry *ce;
                 zend_function **dummy;
                 tmp = get_active_function_name(TSRMLS_C);
