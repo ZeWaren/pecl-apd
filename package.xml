@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
-<!DOCTYPE package SYSTEM "../../package.dtd">
 <!-- do not use the "Type" attribute here, that one is only for
      generated package.xml files -->
-<package version="0.2">
-    <name>APD</name>
+<package>
+    <name>apd</name>
     <summary>Allows inline inclusion of function definitions in C</summary>
     <description>
 APD is a fully feature profiler/debugger that is loaded as a zend_extension.  It aims to be an analog of C's gprof or Perl's Devel::DProf.
@@ -20,5 +19,32 @@ APD is a fully feature profiler/debugger that is loaded as a zend_extension.  It
         <version>0.2</version>
         <state>stable</state>
         <date>2002-10-15</date>
+        <notes>
+Initial release into PECL.  Previous notes available at http://apd.communityconnect.com
+        </notes>
     </release>
+    <filelist>
+        <dir role="src" name="/">
+            <file>LICENSE</file>
+            <file>Makefile.in</file>
+            <file>README</file>
+            <file>apd.dsp</file>
+            <file>apd_lib.c</file>
+            <file>apd_lib.h</file>
+            <file>apd_stack.c</file>
+            <file>apd_stack.h</file>
+            <file>build</file>
+            <file>config.m4</file>
+            <file>opcode.c</file>
+            <file>opcode.h</file>
+            <file>php_apd.c</file>
+            <file>php_apd.h</file>
+            <file>php_sockets.h</file>
+            <file>php_sockets_win.h</file>
+            <file>pprofp</file>
+            <file>pprofp.pl</file>
+            <file>win32compat.c</file>
+            <file>win32compat.h</file>
+         </dir>
+     </filelist> 
 </package>
