@@ -965,7 +965,6 @@ int apd_zend_startup(zend_extension *extension)
 {
 	TSRMLS_FETCH();
 	CG(extended_info) = 1;  /* XXX: this is ridiculous */
-fprintf(stderr, "%s:%d\n", __FILE__, __LINE__);
 	return zend_startup_module(&apd_module_entry);
 }
 
