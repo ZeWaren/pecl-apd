@@ -1589,10 +1589,10 @@ ZEND_EXTENSION();
 
 ZEND_DLEXPORT zend_extension zend_extension_entry = {
 	"Advanced PHP Debugger (APD)",
-	"0.1",
+	APD_VERSION,
 	"Daniel Cowgill and George Schlossnagle",
-	"http://apd.communityconnect.com/",
-	"Copyright (c) 2001 Community Connect Inc.",
+	"http://pear.php.net/",
+	"",
 	apd_zend_startup,
 	apd_zend_shutdown,
 	NULL,		// activate_func_t
