@@ -197,8 +197,8 @@ char* apd_sprintf(const char* fmt, ...)
 char* apd_sprintf_real(const char* fmt, va_list args)
 {
        char* newStr;
-       int size;
-        
+        int size = 1;
+        newStr = (char*) apd_emalloc(size);
 	for (;;) {
 		int n = vsnprintf(newStr, size, fmt, args);
 		if (n > -1 && n < size) {

@@ -65,6 +65,12 @@ function_entry apd_functions[] = {
 	PHP_FE(dump_function_table, NULL)
 	PHP_FE(apd_set_session_trace, NULL)
         PHP_FE(apd_set_session_trace_socket, NULL)
+        PHP_FE(apd_set_session, NULL)
+        PHP_FE(apd_breakpoint, NULL)
+        PHP_FE(apd_continue, NULL)
+        PHP_FE(apd_echo, NULL)
+        PHP_FE(apd_get_active_symbols, NULL)
+        PHP_FE(apd_get_function_table, NULL)
 	{NULL, NULL, NULL}
 };
 
@@ -82,7 +88,7 @@ ZEND_DLEXPORT zend_op_array* apd_compile_file(zend_file_handle* zfh TSRMLS_DC)
 		struct timeval elapsed;
 		gettimeofday(&begin, NULL);
 		timevaldiff(&begin, &APD_GLOBALS(req_begin), &elapsed);
-		fprintf(APD_GLOBALS(dump_file), "(%3d.%06d): Entered zend_compile file.\n", elapsed.tv_sec, elapsed.tv_usec);
+               apd_dump_fprintf("(%3d.%06d): Entered zend_compile file.\n", elapsed.tv_sec, elapsed.tv_usec);
 	}
 	ret_op_array = old_compile_file(zfh TSRMLS_CC);
 	if(APD_GLOBALS(bitmask) & TIMING_TRACE) {
@@ -120,10 +126,8 @@ void apd_dump_fprintf(const char* fmt, ...)
     } else if ( APD_GLOBALS(dump_sock_id) > 0)  {
 #ifndef PHP_WIN32
     write(APD_GLOBALS(dump_sock_id), newStr, strlen (newStr) + 1);
-                 
 #else
     send(APD_GLOBALS(dump_sock_id), newStr, strlen (newStr) + 1, 0);
-        send(APD_GLOBALS(dump_sock_id), "OUT\n", 4,0);
 #endif
     }
         
@@ -132,6 +136,72 @@ void apd_dump_fprintf(const char* fmt, ...)
 }
 
 
+// ---------------------------------------------------------------------------------
+// Interactive Mode
+// ---------------------------------------------------------------------------------
+ 
+/* interactive execution - \n continues, otherwise the data is eval'ed */
+
+void apd_interactive () {
+        char *tmpbuf=NULL,*tmp=NULL;
+        char *compiled_string_description;
+        zval retval;
+        TSRMLS_DC
+
+        int length = 1024; /* the maximum command length that can be accepted! */
+        int recv_len;
+
+        if (APD_GLOBALS(interactive_mode) == 0) return;
+        if (APD_GLOBALS(ignore_interactive) == 1) return;
+        /* only available to sockets */
+        if (APD_GLOBALS(dump_sock_id) < 1) return;
+        
+        /* send the prompt! */
+        
+        write(APD_GLOBALS(dump_sock_id), ">\n", 3);
+        
+        /* loop until \n is recieved */
+        
+        tmpbuf = apd_emalloc(length + 1);
+        
+        recv_len = recv(APD_GLOBALS(dump_sock_id),   tmpbuf , length, 0) ;
+        if (recv_len == -1) {
+                php_error(E_WARNING, "apd debugger failed to recieve data: turning off debugger");
+                apd_efree(tmpbuf);
+                APD_GLOBALS(interactive_mode) = 0;
+                return;
+        }
+        tmpbuf = apd_erealloc(tmpbuf, recv_len + 1);
+        tmpbuf[ recv_len ] = '\0' ;
+        
+        if (strcmp(tmpbuf,"\n")==0) {
+                apd_efree(tmpbuf);
+                return;
+        }
+        
+        /* stop interactive debugging of it'self! */
+        APD_GLOBALS(ignore_interactive) =1;
+        
+        /* evaluate sring */
+        apd_dump_fprintf("EXEC: %s",tmpbuf);
+        
+        tmp = "apd_debugger";
+        compiled_string_description = zend_make_compiled_string_description("Apd Debugger" TSRMLS_CC);
+
+
+        if (zend_eval_string(tmpbuf, &retval, compiled_string_description TSRMLS_CC) == FAILURE) {
+                efree(compiled_string_description);
+                zend_error(E_ERROR, "Failure evaluating code:\n%s\n", tmpbuf);
+        }
+
+        APD_GLOBALS(ignore_interactive) =0;
+        apd_efree(tmpbuf);
+        
+        /* call myself again! = recursive! */
+        apd_interactive();
+}
+
+ 
 
 // ---------------------------------------------------------------------------
 // Call Tracing (Application-specific Code)
@@ -560,8 +630,11 @@ static void traceFunctionExit()
 			zend_hash_add(APD_GLOBALS(summary), entry->functionName, strlen(entry->functionName) + 1, summaryStats, sizeof(summary_t), NULL);
 		}
 	}
-    tmp = apd_sprintf("%s() returned.  Elapsed (%d.%06d)\n", 
-				entry->functionName, diff.tv_sec, diff.tv_usec);
+        tmp = apd_sprintf("%s() at %s:%d returned.  Elapsed (%d.%06d)\n", 
+                                entry->functionName, 
+                                zend_get_executed_filename(TSRMLS_C),
+                                zend_get_executed_lineno(TSRMLS_C),
+                                diff.tv_sec, diff.tv_usec);
 	curSize = strlen(line) ;
 	apd_strcat(&line, &curSize, tmp);
 	apd_efree(tmp);
@@ -732,6 +805,8 @@ PHP_RINIT_FUNCTION(apd)
         APD_GLOBALS(dump_sock_id) = 0;
 	APD_GLOBALS(bitmask) = 0;
 	APD_GLOBALS(summary) = (HashTable*) emalloc(sizeof(HashTable));
+        APD_GLOBALS(interactive_mode) = 0;
+        APD_GLOBALS(ignore_interactive) = 0;          
 	zend_hash_init(APD_GLOBALS(summary), 0, NULL, NULL, 0);
 	initializeTracer();
 	return SUCCESS;
@@ -749,7 +824,7 @@ PHP_RSHUTDOWN_FUNCTION(apd)
 		timevaldiff(&req_end, &APD_GLOBALS(req_begin), &elapsed);
 		apd_dump_fprintf("(%3d.%06d): RSHUTDOWN called - end of trace\n", elapsed.tv_sec, elapsed.tv_usec);
     	        apd_dump_fprintf("---------------------------------------------------------------------------\n");
-		fprintf(APD_GLOBALS(dump_file), "Process Pid (%d)\n", getpid());
+               apd_dump_fprintf("Process Pid (%d)\n", getpid());
 		if(APD_GLOBALS(bitmask) & SUMMARY_TRACE) {
 			printUnsortedSummary(elapsed TSRMLS_CC);
 		}
@@ -1102,7 +1177,6 @@ PHP_FUNCTION(apd_set_session_trace)
 	char *dumpdir;
 	char *path;
 	zval **z_bitmask, **z_dumpdir;
-	time_t starttime;
 
 	if(ZEND_NUM_ARGS() > 2 || ZEND_NUM_ARGS() == 0) 
 	{
@@ -1172,6 +1246,10 @@ PHP_FUNCTION(apd_set_session_trace_socket)
     APD_GLOBALS(dump_file)=NULL;
         
     /* now for the socket stuff */
+    /* is it already connected ? */
+    if (APD_GLOBALS(dump_sock_id) > 0) {
+        RETURN_TRUE;
+    }
         
     if (sock_domain != AF_UNIX && sock_domain != AF_INET) {
         php_error(E_WARNING, "%s() invalid socket domain [%d] specified for argument 2, assuming AF_INET", get_active_function_name(TSRMLS_C), sock_domain);
@@ -1222,6 +1300,155 @@ PHP_FUNCTION(apd_set_session_trace_socket)
         }
     }
     apd_dump_session_start();
+    RETURN_TRUE;
+}
+
+/* {{{ proto bool apd_set_session(int mask)
+   Changes or sets the session trace mask*/
+
+PHP_FUNCTION(apd_set_session) 
+{
+        int bitmask;
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, 
+                "l", &bitmask) == FAILURE) {
+                return;
+        }
+        APD_GLOBALS(bitmask) = bitmask;
+        RETURN_TRUE;
+}
+/* {{{ proto void apd_breakpoint()
+   Starts interactive mode*/
+
+PHP_FUNCTION(apd_breakpoint) 
+{
+        int bitmask; 
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, 
+                "l", &bitmask) == FAILURE) {
+                return;
+        } 
+        APD_GLOBALS(bitmask) = bitmask;
+        APD_GLOBALS(interactive_mode) = 1;
+        RETURN_TRUE;
+}
+/* {{{ proto void apd_breakpoint()
+   Stops interactive mode - normally called by interactive interpreter! */
+
+PHP_FUNCTION(apd_continue) 
+{
+        int bitmask; 
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, 
+                "l", &bitmask) == FAILURE) {
+                return;
+        } 
+        APD_GLOBALS(bitmask) = bitmask;
+        APD_GLOBALS(interactive_mode) = 0;
+        RETURN_TRUE;
+}
+/* {{{ proto  apd_echo(string output)
+   sends string to debugger - normally called by interactive interpreter!*/
+        
+PHP_FUNCTION(apd_echo) 
+{
+        
+        char *str;
+        int str_len;
+         
+  
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,  "s|l", &str,&str_len) == FAILURE) {
+                return;
+        }
+        if (str_len > 0) {
+//              php_error(E_WARNING, "apd echoing %s", str);            
+                if ( APD_GLOBALS(dump_sock_id) > 0)  {
+#ifndef PHP_WIN32
+                        /* Unix bit */
+                        write(APD_GLOBALS(dump_sock_id), str, str_len);
+                        write(APD_GLOBALS(dump_sock_id), "\n", 2);
+#else
+                        /* Win32 bit */
+                        send(APD_GLOBALS(dump_sock_id), str, str_len, 0);
+                        send(APD_GLOBALS(dump_sock_id), "\n", 2, 0);
+#endif
+                }
+                apd_dump_fprintf("%s\n",str);
+//              efree(str);
+        }
+        RETURN_TRUE;
+
+}
+/* {{{ proto array apd_get_active_symbols()
+   returns an array of the current active symbols (eg. local available variable) - without values! */
+
+PHP_FUNCTION(apd_get_active_symbols)
+{
+        Bucket *p;
+        HashTable *hash;
+        zval  *data;
+        int i;
+        char *var_name;
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "") == FAILURE) {
+                return;
+        }
+        hash = EG(active_symbol_table);
+        
+         
+        if (array_init(return_value) == FAILURE) {
+                RETURN_FALSE;
+        }
+        p = hash->pListHead;
+        i=0;
+        while(p != NULL) {
+                MAKE_STD_ZVAL(data);
+                var_name = apd_sprintf("%s",p->arKey);
+                Z_STRVAL_P(data) = var_name;
+                Z_STRLEN_P(data) = strlen(var_name) +1;
+                Z_TYPE_P(data) = IS_STRING;
+                zval_add_ref(&data);
+                zend_hash_next_index_insert(Z_ARRVAL_P(return_value), (void *)&data, sizeof(zval *), NULL);
+                
+                p = p->pListNext;
+                i++;
+                
+        }
+         
+         
+}
+/* {{{ proto array apd_get_function_table()
+   returns an array of the current function table */
+
+PHP_FUNCTION(apd_get_function_table)
+{
+         
+        Bucket *p;
+        HashTable *hash;
+        zval  *data;
+        int i;
+        char *var_name;
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "") == FAILURE) {
+                return;
+        }
+        hash = EG(function_table);
+        
+         
+        if (array_init(return_value) == FAILURE) {
+                RETURN_FALSE;
+        }
+        p = hash->pListHead;
+        i=0;
+        while(p != NULL) {
+                MAKE_STD_ZVAL(data);
+                var_name = apd_sprintf("%s",p->arKey);
+                Z_STRVAL_P(data) = var_name;
+                Z_STRLEN_P(data) = strlen(var_name) +1;
+                Z_TYPE_P(data) = IS_STRING;
+                zval_add_ref(&data);
+                zend_hash_next_index_insert(Z_ARRVAL_P(return_value), (void *)&data, sizeof(zval *), NULL);
+                
+                p = p->pListNext;
+                i++;
+                
+        }
+        
 }
 
 // ---------------------------------------------------------------------------
@@ -1542,8 +1769,23 @@ void printUnsortedSummary(struct timeval elapsed TSRMLS_DC)
 ZEND_DLEXPORT void fcallEnd(zend_op_array *op_array)
 {
 	traceFunctionExit();
+        apd_interactive();
 }
 
+
+ZEND_DLEXPORT void onStatement(zend_op_array *op_array)
+{
+        if (APD_GLOBALS(ignore_interactive) == 1) return;
+        if(APD_GLOBALS(bitmask) & STATEMENT_TRACE) {
+
+                TSRMLS_FETCH();
+                apd_dump_fprintf("statement: %s:%d\n",                   
+                        zend_get_executed_filename(TSRMLS_C),
+                        zend_get_executed_lineno(TSRMLS_C)
+                   );
+                apd_interactive();
+        } 
+}
 
 // ---------------------------------------------------------------------------
 // Zend Extension Support
@@ -1578,7 +1820,7 @@ ZEND_DLEXPORT zend_extension zend_extension_entry = {
 	NULL,		// deactivate_func_t
 	NULL,		// message_handler_func_t
 	NULL,		// op_array_handler_func_t
-	NULL,		// statement_handler_func_t
+       onStatement,    // statement_handler_func_t
 	fcallBegin,	// fcall_begin_handler_func_t
 	fcallEnd,	// fcall_end_handler_func_t
 	NULL,		// op_array_ctor_func_t

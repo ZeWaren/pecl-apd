@@ -47,8 +47,10 @@
 #endif
 
 // ---------------------------------------------------------------------------
+/* functions declared in php_apd.c */
+void printUnsortedSummary(struct timeval TSRMLS_DC);
 void apd_dump_fprintf(const char* fmt, ...);
-
+void apd_interactive ();
 // ---------------------------------------------------------------------------
 // Required Declarations
 // ---------------------------------------------------------------------------
@@ -64,6 +66,13 @@ PHP_FUNCTION(rename_function);
 PHP_FUNCTION(dump_function_table);
 PHP_FUNCTION(apd_set_session_trace);
 PHP_FUNCTION(apd_set_session_trace_socket);
+PHP_FUNCTION(apd_set_session);
+
+PHP_FUNCTION(apd_breakpoint);
+PHP_FUNCTION(apd_continue);
+PHP_FUNCTION(apd_echo);
+PHP_FUNCTION(apd_get_active_symbols);
+PHP_FUNCTION(apd_get_function_table);
 
 PHP_MINIT_FUNCTION(apd);
 PHP_RINIT_FUNCTION(apd);
@@ -96,6 +105,8 @@ ZEND_BEGIN_MODULE_GLOBALS(apd)
 	long bitmask;              /* Bitmask for determining what gets logged */
 	void* last_mem_header;		/* tail of persistent zend_mem_header list */
 	void* last_pmem_header;		/* tail of persistent zend_mem_header list */
+        int interactive_mode;     /* is interactive mode on */
+        int ignore_interactive;   /* ignore interactive mode flag for executing php from the debugger*/
 	int allocated_memory;
 ZEND_END_MODULE_GLOBALS(apd)
 
