@@ -538,6 +538,8 @@ static void apd_error_cb(int type, const char *error_filename, const uint error_
   char *line = NULL;
     int curSize;
 
+	TSRMLS_FETCH();
+
   if(APD_GLOBALS(bitmask) & ERROR_TRACE) {
     switch(type) {
       case E_ERROR:
