@@ -10,7 +10,7 @@ phplibdir = /home/george/src/apd/modules
 PHP_COMPILE = $(LIBTOOL) --mode=compile $(COMPILE) -c $<
 CC = gcc
 CFLAGS = -g -O2
-CPP =
+CPP = gcc -E
 CPPFLAGS = -DHAVE_CONFIG_H
 CXX =
 DEFS =

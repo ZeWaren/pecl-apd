@@ -16,7 +16,7 @@
 #  | Authors: Sascha Schumann <sascha@schumann.cx>                        |
 #  +----------------------------------------------------------------------+
 #
-# $Id: fastgen.sh,v 1.1.1.1 2001-07-26 21:42:52 george Exp $ 
+# $Id: fastgen.sh,v 1.2 2001-08-27 20:29:39 george Exp $ 
 #
 
 srcdir=$1
