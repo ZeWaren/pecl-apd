@@ -1,24 +1,22 @@
 #!/usr/bin/env perl
 
 use Getopt::Std;
+
+getopts('ahlrRsStTuUO:vz', \%opt);
 my $datafile = shift;
-
-getopts('ahltTO:vz', \%opt);
-
 if(exists $opt{'h'} || !$datafile) {
     usage();
 }
 $opt{'O'} ||= 15;
 
-my $datafile = shift;
 open DATA, $datafile;
 
 my $index_cur;
 my @callstack = (); # array of array refs of form id, utime, stime, rtime
 
 sub parse_info($) {
-        $headerName = shift;
-        while(<DATA>) {
+    $headerName = shift;
+    while(<DATA>) {
         chomp;
         last if /^END_$headerName$/;
         if (/(\w+)=(.*)/) {
@@ -36,8 +34,14 @@ pprofp <flags> <trace file>
     Sort options
     -a          Sort by alphabetic names of subroutines.
     -l          Sort by number of calls to subroutines
-    -z          Sort by user+system time spent in subroutines. (default)
+    -r          Sort by real time spent in subroutines.
+    -R          Sort by real time spent in subroutines (inclusive of child calls).
+    -s          Sort by system time spent in subroutines.
+    -S          Sort by system time spent in subroutines (inclusive of child calls).
+    -u          Sort by user time spent in subroutines.
+    -U          Sort by user time spent in subroutines (inclusive of child calls).
     -v          Sort by average amount of time spent in subroutines.
+    -z          Sort by user+system time spent in subroutines. (default)
 
     Display options
     -O <cnt>    Specifies maximum number of subroutines to display. (default 15)
@@ -131,15 +135,29 @@ sub by_name {
 	uc($symbol_hash{$a}) cmp uc($symbol_hash{$b});
 }
 
+sub by_real { $rtimes->{$b} <=> $rtimes->{$a} }
+sub by_creal { $c_rtimes->{$b} <=> $c_rtimes->{$a} }
+
+sub by_sys { $stimes->{$b} <=> $stimes->{$a} }
+sub by_csys { $c_stimes->{$b} <=> $c_stimes->{$a} }
+
+sub by_user { $utimes->{$b} <=> $utimes->{$a} }
+sub by_cuser { $c_utimes->{$b} <=> $c_utimes->{$a} }
+
 my $sort = 'by_time';
 $sort = 'by_calls' if exists $opt{l};
 $sort = 'by_name' if exists $opt{a};
 $sort = 'by_avgcpu' if exists $opt{v};
+$sort = 'by_real' if exists $opt{r};
+$sort = 'by_creal' if exists $opt{R};
+$sort = 'by_sys' if exists $opt{s};
+$sort = 'by_csys' if exists $opt{S};
+$sort = 'by_user' if exists $opt{u};
+$sort = 'by_cuser' if exists $opt{U};
 
 
 my $l = 0;
 
-$cfg{hz} = 1;
 printf "
 Total Elapsed Time = %4.2f
 Total System Time  = %4.2f

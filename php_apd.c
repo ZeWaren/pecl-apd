@@ -11,7 +11,7 @@
  * George Schlossnagle <george@lethargy.org>
  * ==================================================================
 */
-
+    
 #include "php_apd.h"
 #include "apd_lib.h"
 #include "opcode.h"
@@ -930,6 +930,7 @@ PHP_RINIT_FUNCTION(apd)
     APD_GLOBALS(interactive_mode) = 0;
     APD_GLOBALS(ignore_interactive) = 0;  
     APD_GLOBALS(lastclock) = times(&APD_GLOBALS(lasttms));
+    memcpy(&APD_GLOBALS(firsttms), &APD_GLOBALS(lasttms), sizeof(struct tms));
     APD_GLOBALS(firstclock) = APD_GLOBALS(lastclock);
     gettimeofday(&APD_GLOBALS(lasttime), NULL);
 	zend_hash_init(APD_GLOBALS(summary), 0, NULL, NULL, 0);
@@ -967,8 +968,8 @@ PHP_RSHUTDOWN_FUNCTION(apd)
         endclock = times(&endtp);
         apd_pprof_fprintf("END_TRACE\n");
         apd_pprof_fprintf("total_user=%d\ntotal_sys=%d\ntotal_wall=%d\n",
-            endtp.tms_utime,
-            endtp.tms_stime,
+            endtp.tms_utime - APD_GLOBALS(firsttms).tms_utime,
+            endtp.tms_stime - APD_GLOBALS(firsttms).tms_stime,
             endclock - APD_GLOBALS(firstclock));
         apd_pprof_fprintf("END_FOOTER\n");
         fclose(APD_GLOBALS(pprof_file));
