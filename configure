@@ -1210,7 +1210,7 @@ else
 fi
 
 
-case "$PHP_APD" in
+case $PHP_APD in
 shared,*)
   ext_output="yes, shared"
   ext_shared=yes
@@ -1222,11 +1222,11 @@ shared)
   PHP_APD=yes
   ;;
 no)
-  ext_output="no"
+  ext_output=no
   ext_shared=no
   ;;
 *)
-  ext_output="yes"
+  ext_output=yes
   ext_shared=no
   ;;
 esac
@@ -1252,11 +1252,11 @@ EOF
   EXT_SUBDIRS="$EXT_SUBDIRS apd"
   
   if test -d "$abs_srcdir/ext/apd"; then
-    ext_builddir="ext/apd"
-    ext_srcdir="$abs_srcdir/ext/apd"
+    ext_builddir=ext/apd
+    ext_srcdir=$abs_srcdir/ext/apd
   else
-    ext_builddir="."
-    ext_srcdir="$abs_srcdir"
+    ext_builddir=.
+    ext_srcdir=$abs_srcdir
   fi
 
   if test "$ext_shared" != "shared" && test "$ext_shared" != "yes"; then
@@ -5395,7 +5395,8 @@ else
   
     test -d conftestdir && rm -rf conftestdir
     mkdir -p conftestdir/somedir >/dev/null 2>&1
-    if test -d conftestdir/somedir; then
+    mkdir -p conftestdir/somedir >/dev/null 2>&1
+    if test "$?" = "0" && test -d conftestdir/somedir; then
       ac_cv_mkdir_p=yes
     else
       ac_cv_mkdir_p=no
