@@ -16,36 +16,35 @@ APD is a fully feature profiler/debugger that is loaded as a zend_extension.  It
         </maintainer>
     </maintainers>
      <release>
-        <version>0.3</version>
-        <date>2002-10-15</date>
+        <version>0.3p1</version>
+        <date>2002-10-29</date>
         <state>beta</state>
         <notes>
-            Complete rewrite of internal to use the zend_execute function
-            pointer instead of the engine hooks for tracing.
+                Enabled compile on non 4.3 systems
         </notes>
     </release>
     <filelist>
         <dir role="src" name="/">
-            <file>LICENSE</file>
-            <file>Makefile.in</file>
-            <file>README</file>
-            <file>apd.dsp</file>
-            <file>apd_lib.c</file>
-            <file>apd_lib.h</file>
-            <file>apd_stack.c</file>
-            <file>apd_stack.h</file>
-            <file>build</file>
-            <file>config.m4</file>
-            <file>opcode.c</file>
-            <file>opcode.h</file>
-            <file>php_apd.c</file>
-            <file>php_apd.h</file>
-            <file>php_sockets.h</file>
-            <file>php_sockets_win.h</file>
-            <file>pprofp</file>
-            <file>pprofp.pl</file>
-            <file>win32compat.c</file>
-            <file>win32compat.h</file>
+            <file role="doc">LICENSE</file>
+            <file role="ext">Makefile.in</file>
+            <file role="doc">README</file>
+            <file role="ext">apd.dsp</file>
+            <file role="ext">apd_lib.c</file>
+            <file role="ext">apd_lib.h</file>
+            <file role="ext">apd_stack.c</file>
+            <file role="ext">apd_stack.h</file>
+            <file role="ext">build</file>
+            <file role="ext">config.m4</file>
+            <file role="ext">opcode.c</file>
+            <file role="ext">opcode.h</file>
+            <file role="ext">php_apd.c</file>
+            <file role="ext">php_apd.h</file>
+            <file role="ext">php_sockets.h</file>
+            <file role="ext">php_sockets_win.h</file>
+            <file role="ext">pprofp</file>
+            <file role="ext">pprofp.pl</file>
+            <file role="ext">win32compat.c</file>
+            <file role="ext">win32compat.h</file>
          </dir>
      </filelist> 
      <changelog>
@@ -57,5 +56,14 @@ APD is a fully feature profiler/debugger that is loaded as a zend_extension.  It
         First release into PECL.  Previous chagelog at http://apd.communityconnect.com
         </notes>
       </release>
+     <release>
+        <version>0.3</version>
+        <date>2002-10-15</date>
+        <state>beta</state>
+        <notes>
+            Complete rewrite of internal to use the zend_execute function
+            pointer instead of the engine hooks for tracing.
+        </notes>
+    </release>
       </changelog>  
 </package>
