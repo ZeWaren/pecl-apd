@@ -56,8 +56,6 @@ parse_info('HEADER');
 while(<DATA>) {
     chomp;
     last if /^END_TRACE$/;
-    $indent_last = $indent_cur;
-    $index_last = $index_cur;
     ($token, $data) = split(/ /,$_, 2);
     if ($token eq '&') {
         my ($index, $name) = split(/ /, $data, 2);
@@ -85,13 +83,13 @@ while(<DATA>) {
             }
             else {
                 $repstr = ' ('.++$repcnt.'x)' if $repcnt;
-                print ' ' x $indent_last.$symbol_hash{$index_last}.$repstr."\n";
+                print '  ' x $indent_last.$symbol_hash{$index_last}.$repstr."\n";
                 $repstr = '';
                 $repcnt = 0;
                 $index_last = $index_cur;
                 $indent_last = $indent_cur;
             }
-	    $indent_cur++;
+	        $indent_cur++;
         }
         next;
     }
