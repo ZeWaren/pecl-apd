@@ -16,11 +16,11 @@ APD is a full-featured profiler/debugger that is loaded as a zend_extension.  It
         </maintainer>
     </maintainers>
      <release>
-        <version>0.4</version>
+        <version>0.4p2</version>
         <date>2002-11-25</date>
         <state>stable</state>
         <notes>
-            ixed installation of pprofp, added some memory tracing
+            Fixed build for 4.3
         </notes>
     </release>
     <filelist>
@@ -78,6 +78,14 @@ APD is a full-featured profiler/debugger that is loaded as a zend_extension.  It
         <state>beta</state>
         <notes>
             Doc fix, minor performance improvements
+        </notes>
+    </release>
+     <release>
+        <version>0.4</version>
+        <date>2002-11-25</date>
+        <state>stable</state>
+        <notes>
+            ixed installation of pprofp, added some memory tracing
         </notes>
     </release>
     </changelog>  
