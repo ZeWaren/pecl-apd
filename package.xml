@@ -16,11 +16,12 @@ APD is a full-featured profiler/debugger that is loaded as a zend_extension.  It
         </maintainer>
     </maintainers>
      <release>
-        <version>0.9</version>
-        <date>2002-11-25</date>
+        <version>1.0.1</version>
+        <date>2004-09-27</date>
         <state>stable</state>
         <notes>
-            Fixed build for 4.3
+            Fixed crash error in pprofp.
+            Fixed crash on 64bit architectures.
         </notes>
     </release>
     <filelist>
@@ -29,21 +30,26 @@ APD is a full-featured profiler/debugger that is loaded as a zend_extension.  It
             <file role="src">Makefile.in</file>
             <file role="doc">README</file>
             <file role="src">apd.dsp</file>
+            <file role="src">apd_array.c</file>
+            <file role="src">apd_array.h</file>
             <file role="src">apd_lib.c</file>
             <file role="src">apd_lib.h</file>
+            <file role="src">apd_summary.c</file>
             <file role="src">build</file>
             <file role="src">config.m4</file>
-            <file role="src">opcode.c</file>
-            <file role="src">opcode.h</file>
             <file role="src">php_apd.c</file>
             <file role="src">php_apd.h</file>
             <file role="src">php_sockets.h</file>
             <file role="src">php_sockets_win.h</file>
             <file role="script">pprofp</file>
+            <file role="script">pprof2calltree</file>
             <file role="src">win32compat.c</file>
             <file role="src">win32compat.h</file>
          </dir>
      </filelist> 
+     <deps>
+         <dep type="php" rel="ge" version="5.0.0RC3-dev"/>
+     </deps>
      <changelog>
      <release>
         <version>0.2</version>
@@ -83,7 +89,40 @@ APD is a full-featured profiler/debugger that is loaded as a zend_extension.  It
         <date>2002-11-25</date>
         <state>stable</state>
         <notes>
-            ixed installation of pprofp, added some memory tracing
+            Fixed installation of pprofp, added some memory tracing
+        </notes>
+    </release>
+     <release>
+        <version>0.9</version>
+        <date>2002-11-25</date>
+        <state>stable</state>
+        <notes>
+            Fixed build for 4.3
+        </notes>
+    </release>
+     <release>
+        <version>0.9.1</version>
+        <date>2004-07-16</date>
+        <state>stable</state>
+        <notes>
+            Fix for packaging error
+        </notes>
+    </release>
+     <release>
+        <version>0.9.2</version>
+        <date>2004-09-28</date>
+        <state>stable</state>
+        <notes>
+            Fix crash in pprofp
+            Fix crash error on 64 bit.
+        </notes>
+    </release>
+    <release>
+        <version>1.0</version>
+        <date>2004-08-20</date>
+        <state>stable</state>
+        <notes>
+            Official php5 release
         </notes>
     </release>
     </changelog>  

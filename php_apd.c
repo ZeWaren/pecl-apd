@@ -101,7 +101,7 @@ apd_pprof_output_header(void)
 {
 	TSRMLS_FETCH();
 
-	apd_pprof_fprintf("#Pprof [APD] v0.9\n");
+	apd_pprof_fprintf("#Pprof [APD] v1.0.1\n");
 	apd_pprof_fprintf("caller=%s\n",zend_get_executed_filename(TSRMLS_C));
 	apd_pprof_fprintf("\nEND_HEADER\n");
 }
