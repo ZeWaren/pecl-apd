@@ -1,6 +1,7 @@
 #!/usr/bin/env php 
 <?php
 require "Console/Getopt.php";
+error_reporting(0);
 $con = new Console_Getopt;
 $args = $con->readPHPArgv();
 array_shift($args);
@@ -25,6 +26,22 @@ if(!array_key_exists('hz', $cfg)) {
 }
 
 $callstack = array();
+$calls = array();
+$indent_cur = 0;
+$file_hash = array();
+$mem = array();
+$t_rtime = 0;
+$t_stime = 0;
+$t_utime = 0;
+$c_rtimes = array();
+$c_stimes = array();
+$c_utimes = array();
+$rtimes = array();
+$stimes = array();
+$utimes = array();
+$stotal = 0;
+$last_memory = 0;
+
 while($line = fgets($DATA)) {
     $line = rtrim($line);
     if(preg_match("/^END_TRACE/", $line)){
@@ -147,7 +164,10 @@ print "\n
 %Time (excl/cumm)  (excl/cumm)  (excl/cumm) Calls    call    s/call  Memory Usage Name
 --------------------------------------------------------------------------------------\n";
 $l = 0;
-//foreach (usort(array_keys($symbol_hash), $sort) as $j) {
+$itotal = 0;
+$percall = 0;
+$cpercall = 0;
+
 uksort($symbol_hash, $sort);
 foreach (array_keys($symbol_hash) as $j) {
     if(array_key_exists('i', $opt) && $symbol_type[$j] == 1) {
