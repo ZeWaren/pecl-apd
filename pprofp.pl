@@ -2,7 +2,9 @@
 
 use Getopt::Std;
 
-getopts('tT', \%opt);
+getopts('altTO:v', \%opt);
+$opt{'O'} ||= 15;
+
 my $datafile = shift;
 open DATA, $datafile;
 
@@ -92,13 +94,31 @@ parse_info('FOOTER');
 
 print "\n\n%Time Real(excl/cum)  User(excl/cum)  Sys(excl/cum)  Calls  s/call Cs/call Name\n";
 
-sub by_percall {
+sub by_time {
 	($stimes->{$b} + $utimes->{$b}) <=> ($stimes->{$a} + $utimes->{$a});
 }
 
+sub by_avgcpu {   
+        ($stimes->{$b} + $utimes->{$b})/$calls->{$b} <=> ($stimes->{$a} + $utimes->{$a})/$calls->{$a};
+}
+
+sub by_calls {
+	$calls->{$b} <=> $calls->{$a};
+}
+
+sub by_name {
+	$symbol_hash{$a} cmp $symbol_hash{$b};
+}
+
+my $sort = 'by_time';
+$sort = 'by_calls' if exists $opt{l};
+$sort = 'by_name' if exists $opt{a};
+$sort = 'by_avgcpu' if exists $opt{v};
+
+
 my $l = 0;
 foreach $j (sort by_percall  keys %symbol_hash) {
-    last if $l++ > 20;
+    last if $l++ > $opt{'O'};
     $pcnt = ($stimes->{$j} + $utimes->{$j})/($utotal + $stotal + $itotal);
     $c_pcnt = ($c_stimes->{$j} + $utimes->{$j})/($utotal + $stotal + $itotal);
     $rsecs = $rtimes->{$j};
