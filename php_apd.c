@@ -77,11 +77,11 @@ function_entry apd_functions[] = {
 	PHP_FE(dump_function_table, NULL)
 	PHP_FE(apd_set_session_trace, NULL)
 	PHP_FE(apd_set_pprof_trace, NULL)
-        PHP_FE(apd_set_session_trace_socket, NULL)
-        PHP_FE(apd_set_session, NULL)
-        PHP_FE(apd_breakpoint, NULL)
-        PHP_FE(apd_continue, NULL)
-        PHP_FE(apd_echo, NULL)
+	PHP_FE(apd_set_session_trace_socket, NULL)
+	PHP_FE(apd_set_session, NULL)
+	PHP_FE(apd_breakpoint, NULL)
+	PHP_FE(apd_continue, NULL)
+	PHP_FE(apd_echo, NULL)
 	{NULL, NULL, NULL}
 };
 
@@ -377,8 +377,9 @@ char *apd_get_active_function_name(zend_op_array *op_array TSRMLS_DC)
 {
     char *funcname = NULL;
     int curSize = 0;
-	zend_execute_data *execd;
+    zend_execute_data *execd;
     execd = EG(current_execute_data);
+    
     if(execd) {
         if(execd->function_state.function->common.function_name) {
             if(execd->ce) {
