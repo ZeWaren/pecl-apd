@@ -106,10 +106,11 @@ if(array_key_exists('u', $opt)) { $sort = 'by_utime'; }
 if(array_key_exists('U', $opt)) { $sort = 'by_c_utime'; }
 
 printf("
+Trace for %s
 Total Elapsed Time = %4.2f
 Total System Time  = %4.2f
 Total User Time    = %4.2f
-", $rtotal/$cfg['hz'], $stotal/$cfg['hz'], $utotal/$cfg['hz']);
+", $cfg['caller'], $rtotal/$cfg['hz'], $stotal/$cfg['hz'], $utotal/$cfg['hz']);
 print "\n
          Real         User        System           secs/    cumm
 %Time (excl/cumm)  (excl/cumm)  (excl/cumm) Calls  call    s/call Name

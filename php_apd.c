@@ -1365,6 +1365,7 @@ PHP_FUNCTION(apd_set_session_trace)
 void apd_pprof_header() {
         apd_pprof_fprintf("#Pprof [APD] v0.9\n");
         apd_pprof_fprintf("hz=%d\n", sysconf(_SC_CLK_TCK));
+	apd_pprof_fprintf("caller=%s\n",zend_get_executed_filename(TSRMLS_C));
         apd_pprof_fprintf("\nEND_HEADER\n");
         apd_pprof_fprintf("& 1 apd_set_session_trace\n+ 1\n");
 
