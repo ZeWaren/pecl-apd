@@ -1,10 +1,16 @@
 This is an extremely beta howto on how to use this profiler.
 
-first, in your ini file add:
+build/install:
+in apd directory:
+
+run phpize; configure --enable-apd; make; cp .libs/php_apd.so /extensions/dir/
+
+in your ini file add:
+
 ;; activate the extension
-zend_extension="/path/to/php_pdb.so"
+zend_extension="/path/to/php_apd.so"
 ;; set the directory for trace dumps
-pdb.dumpdir="/path/to/tracedump/destdir"  
+apd.dumpdir="/path/to/tracedump/destdir"  
 
 in your php file, add:
 
