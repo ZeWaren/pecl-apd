@@ -16,11 +16,11 @@ APD is a full-featured profiler/debugger that is loaded as a zend_extension.  It
         </maintainer>
     </maintainers>
      <release>
-        <version>0.3p2</version>
-        <date>2002-10-29</date>
-        <state>beta</state>
+        <version>0.4</version>
+        <date>2002-11-25</date>
+        <state>stable</state>
         <notes>
-            Doc fix, minor performance improvements
+            ixed installation of pprofp, added some memory tracing
         </notes>
     </release>
     <filelist>
@@ -41,8 +41,7 @@ APD is a full-featured profiler/debugger that is loaded as a zend_extension.  It
             <file role="src">php_apd.h</file>
             <file role="src">php_sockets.h</file>
             <file role="src">php_sockets_win.h</file>
-            <file role="src">pprofp</file>
-            <file role="src">pprofp.pl</file>
+            <file role="script">pprofp</file>
             <file role="src">win32compat.c</file>
             <file role="src">win32compat.h</file>
          </dir>
@@ -71,6 +70,14 @@ APD is a full-featured profiler/debugger that is loaded as a zend_extension.  It
         <state>beta</state>
         <notes>
                 Enabled compile on non 4.3 systems
+        </notes>
+    </release>
+     <release>
+        <version>0.3p2</version>
+        <date>2002-10-29</date>
+        <state>beta</state>
+        <notes>
+            Doc fix, minor performance improvements
         </notes>
     </release>
     </changelog>  
