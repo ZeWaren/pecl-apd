@@ -114,6 +114,7 @@ ZEND_BEGIN_MODULE_GLOBALS(apd)
 	struct timeval lasttime;  /* Last time recorded */
 	clock_t firstclock;  /* Last time recorded */
 	clock_t lastclock;  /* Last time recorded */
+	struct tms firsttms;  /* Last time recorded */
 	struct tms lasttms;  /* Last time recorded */
     int index;                /* current index of functions for pprof tracing */
 	long bitmask;              /* Bitmask for determining what gets logged */
