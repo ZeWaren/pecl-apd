@@ -512,19 +512,24 @@ static void traceFunctionEntry(
         struct tms walltimes;
         clock_t clock;
         if(APD_GLOBALS(index) > 1) {
-//            timevaldiff(&(entry->func_begin), &APD_GLOBALS(lasttime), &elapsed);
- //           APD_GLOBALS(lasttime) = entry->func_begin;
+//          timevaldiff(&(entry->func_begin), &APD_GLOBALS(lasttime), &elapsed);
+//          APD_GLOBALS(lasttime) = entry->func_begin;
         } else {
-  //          gettimeofday(&now, NULL);
-   //         timevaldiff(&now, &APD_GLOBALS(lasttime), &elapsed);
-  //          APD_GLOBALS(lasttime) = now;
+//          gettimeofday(&now, NULL);
+//          timevaldiff(&now, &APD_GLOBALS(lasttime), &elapsed);
+//          APD_GLOBALS(lasttime) = now;
         }
         clock = times(&walltimes);
-   //     APD_GLOBALS(lasttime) = entry->func_begin;
-        apd_pprof_fprintf("@ %d %d %d\n", 
-            walltimes.tms_utime - APD_GLOBALS(lasttms).tms_utime, 
-            walltimes.tms_stime - APD_GLOBALS(lasttms).tms_stime, 
-            clock - APD_GLOBALS(lastclock));
+//      APD_GLOBALS(lasttime) = entry->func_begin;
+        if ( (walltimes.tms_utime - APD_GLOBALS(lasttms).tms_utime) ||
+             (walltimes.tms_stime - APD_GLOBALS(lasttms).tms_stime) ||
+             (clock - APD_GLOBALS(lastclock)) )
+        {
+            apd_pprof_fprintf("@ %d %d %d\n", 
+                walltimes.tms_utime - APD_GLOBALS(lasttms).tms_utime, 
+                walltimes.tms_stime - APD_GLOBALS(lasttms).tms_stime, 
+                clock - APD_GLOBALS(lastclock));
+        }
         APD_GLOBALS(lasttms) = walltimes;
         APD_GLOBALS(lastclock) = clock;
     }
@@ -677,10 +682,15 @@ static void traceFunctionExit()
 
         if (APD_GLOBALS(index) > 1) {
             APD_GLOBALS(lasttime) = entry->func_begin;
-            apd_pprof_fprintf("@ %d %d %d\n",
-                walltimes.tms_utime - APD_GLOBALS(lasttms).tms_utime,
-                walltimes.tms_stime - APD_GLOBALS(lasttms).tms_stime,
-                clock - APD_GLOBALS(lastclock));
+            if( (walltimes.tms_utime - APD_GLOBALS(lasttms).tms_utime) ||
+                (walltimes.tms_stime - APD_GLOBALS(lasttms).tms_stime) ||
+                (clock - APD_GLOBALS(lastclock)))
+            {
+                apd_pprof_fprintf("@ %d %d %d\n",
+                    walltimes.tms_utime - APD_GLOBALS(lasttms).tms_utime,
+                    walltimes.tms_stime - APD_GLOBALS(lasttms).tms_stime,
+                    clock - APD_GLOBALS(lastclock));
+            }
         }
         APD_GLOBALS(lasttms) = walltimes;
         APD_GLOBALS(lastclock) = clock;
@@ -920,6 +930,7 @@ PHP_RINIT_FUNCTION(apd)
     APD_GLOBALS(interactive_mode) = 0;
     APD_GLOBALS(ignore_interactive) = 0;  
     APD_GLOBALS(lastclock) = times(&APD_GLOBALS(lasttms));
+    APD_GLOBALS(firstclock) = APD_GLOBALS(lastclock);
     gettimeofday(&APD_GLOBALS(lasttime), NULL);
 	zend_hash_init(APD_GLOBALS(summary), 0, NULL, NULL, 0);
 	initializeTracer();
@@ -951,6 +962,14 @@ PHP_RSHUTDOWN_FUNCTION(apd)
 		fclose(APD_GLOBALS(dump_file));
 	}
     if(APD_GLOBALS(pprof_file)) {
+        struct tms endtp;
+        clock_t endclock;
+        endclock = times(&endtp);
+        apd_pprof_fprintf("END_TRACE\n");
+        apd_pprof_fprintf("total_user=%d\ntotal_sys=%d\ntotal_wall=%d\n",
+            endtp.tms_utime,
+            endtp.tms_stime,
+            endclock - APD_GLOBALS(firstclock));
         fclose(APD_GLOBALS(pprof_file));
     }
     if (APD_GLOBALS(dump_sock_id)) {
@@ -1336,9 +1355,9 @@ PHP_FUNCTION(apd_set_session_trace)
         apd_dump_session_start();
 }	
 
-void apd_pprof_session_start() {
+void apd_pprof_header() {
         apd_pprof_fprintf("#Pprof [APD] v0.9\n");
-        apd_pprof_fprintf("$hz=%d\n", sysconf(_SC_CLK_TCK));
+        apd_pprof_fprintf("hz=%d\n", sysconf(_SC_CLK_TCK));
         apd_pprof_fprintf("\nEND_HEADER\n");
         apd_pprof_fprintf("& 1 apd_set_session_trace\n+ 1\n");
 
@@ -1387,7 +1406,7 @@ PHP_FUNCTION(apd_set_pprof_trace)
         zend_error(E_ERROR, "%s() failed to open %s for tracing", get_active_function_name(TSRMLS_C), path);
     }  
     efree(path);
-    apd_pprof_session_start();
+    apd_pprof_header();
 }  
 
 

@@ -107,6 +107,7 @@ ZEND_BEGIN_MODULE_GLOBALS(apd)
     int dump_sock_id; /* Socket for dumping data to */
 	struct timeval req_begin;  /* Time the request began */
 	struct timeval lasttime;  /* Last time recorded */
+	clock_t firstclock;  /* Last time recorded */
 	clock_t lastclock;  /* Last time recorded */
 	struct tms lasttms;  /* Last time recorded */
     int index;                /* current index of functions for pprof tracing */
