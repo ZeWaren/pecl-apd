@@ -4,11 +4,7 @@
 ARG_ENABLE("apd", "Alternative PHP Debugger", "no");
 
 if (PHP_APD != "no") {
-	if (PHP_VERSION > 4) {
-		WARNING('APD does not yet compile with php >= 5');
-	} else {
-		EXTENSION('apd', 'apd_lib.c apd_stack.c opcode.c php_apd.c win32compat.c');
-		AC_DEFINE('HAVE_APD', 1);
-	}
+	EXTENSION('apd', 'php_apd.c apd_lib.c apd_array.c apd_dummary.c win32compat.c');
+	AC_DEFINE('HAVE_APD', 1);
 }
 
