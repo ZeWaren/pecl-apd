@@ -1051,7 +1051,7 @@ ZEND_DLEXPORT void fcallBegin(zend_op_array *op_array)
 				apd_stack_push(argStack, arg);
 			}
 			break;
-		default:
+		case ZEND_DO_FCALL:
 			switch(curOpCode->op1.op_type)	{
 				case IS_CONST:
 					if (curOpCode->op1.u.constant.type == IS_STRING) {
@@ -1064,14 +1064,14 @@ ZEND_DLEXPORT void fcallBegin(zend_op_array *op_array)
 					if (CG(class_entry).name)	{
 fprintf(stderr, "DEBUG in method call op_type is %d\n", curOpCode->op1.op_type);
 /*						func_table = &CG(class_entry).function_table; */
-						sprintf(fname_buffer, "%s::%s", 
+						sprintf(fname_buffer, "%s::%p", 
 								CG(class_entry).name,
-								op_array->function_name
+								curOpCode->op2.u.constant.value.str.val
 							   );
 					}
 					else	{
 						sprintf(fname_buffer, "<???>::%s", 
-								op_array->function_name
+								curOpCode->op1.u.constant.value.str.val
 							   );
 
 					}
@@ -1079,11 +1079,74 @@ fprintf(stderr, "DEBUG in method call op_type is %d\n", curOpCode->op1.op_type);
 					break;
 				default:
 					sprintf(fname_buffer, "<???>::%s",
-						op_array->function_name
+						curOpCode->op1.u.constant.value.str.val
 						);
 					functionName = apd_estrdup(fname_buffer);
 					break;
 			}
+		case ZEND_DO_FCALL_BY_NAME: 
+			{
+				zend_op* tmpOpCode;
+				zval* function_name;
+
+				tmpOpCode = curOpCode;
+				fprintf(stderr, "Searching for INIT_FCALL opcode\n");
+				while(tmpOpCode->opcode != ZEND_INIT_FCALL_BY_NAME) {
+					tmpOpCode--;
+				}
+				fprintf(stderr, "Found INIT_FCALL opcode\n");
+				switch(curOpCode->op1.op_type)  {
+					case IS_CONST:
+						switch(tmpOpCode->op2.op_type) {
+							case IS_CONST:
+								functionName = apd_copystr(
+									tmpOpCode->op2.u.constant.value.str.val,
+		 							tmpOpCode->op2.u.constant.value.str.len
+								);
+								break;
+							default:  /* FIXME need better IS_VAR handling */
+								functionName = apd_estrdup("null");
+								break;
+		
+						}
+						break;
+					case IS_VAR:
+						if (CG(class_entry).name)   {
+							switch(tmpOpCode->op2.op_type) {
+								case IS_CONST:
+									sprintf(fname_buffer, "%s::%s",
+										CG(class_entry).name,
+										tmpOpCode->op2.u.constant.value.str.val
+									);
+									break;
+								default:
+									sprintf(fname_buffer, "%s::<???>",
+										CG(class_entry).name
+									);
+									break;
+							}
+						}
+						else {
+							switch(tmpOpCode->op2.op_type) {
+								case IS_CONST:
+									sprintf(fname_buffer, "<???>::%s",
+										tmpOpCode->op2.u.constant.value.str.val
+									);
+									break;
+								default:
+									sprintf(fname_buffer, "<???>::<???>");
+									break;
+							}
+						}
+						functionName = apd_estrdup(fname_buffer);
+				}
+								
+			}
+			break;
+		default:
+			fprintf(stderr, "Unexpected error %s:%d\n", __FILE__, __LINE__);
+			break;
+			
 	}
 
 	traceFunctionEntry(func_table, functionName, apd_stack_getsize(argStack),
