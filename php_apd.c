@@ -584,7 +584,7 @@ static void traceFunctionEntry(
         summary_t *summaryStats;
         if ( zend_hash_find(APD_GLOBALS(summary), entry->functionName, strlen(entry->functionName) + 1, (void *) &summaryStats) == SUCCESS )
         {
-            apd_pprof_fprintf("+ %d\n", summaryStats->index);
+            apd_pprof_fprintf("+ %d %s:%d\n", summaryStats->index, entry->filename, entry->lineNum);
         }
         else {
             summaryStats = (summary_t *) emalloc(sizeof(summary_t));
@@ -593,7 +593,7 @@ static void traceFunctionEntry(
             summaryStats->totalTime = 0;
             zend_hash_add(APD_GLOBALS(summary), entry->functionName, strlen(entry->functionName) + 1, summaryStats, sizeof(summary_t), NULL);
             apd_pprof_fprintf("& %d %s\n", summaryStats->index, entry->functionName);
-            apd_pprof_fprintf("+ %d\n", summaryStats->index);
+            apd_pprof_fprintf("+ %d %s:%d\n", summaryStats->index, entry->filename, entry->lineNum);
         }
     }
 	if(APD_GLOBALS(bitmask) & MEMORY_TRACE) {
