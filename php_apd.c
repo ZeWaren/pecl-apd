@@ -77,6 +77,8 @@ function_entry apd_functions[] = {
 int print_indent;
 ZEND_DECLARE_MODULE_GLOBALS(apd);
 
+void printUnsortedSummary(struct timeval);
+
 EXPORT zend_op_array* apd_compile_file(zend_file_handle* zfh TSRMLS_DC)
 {
 	struct timeval begin;
@@ -645,20 +647,12 @@ PHP_RSHUTDOWN_FUNCTION(apd)
 		fprintf(APD_GLOBALS(dump_file), "(%3d.%06d): RSHUTDOWN called - end of trace\n", elapsed.tv_sec, elapsed.tv_usec);
     	fprintf(APD_GLOBALS(dump_file), "---------------------------------------------------------------------------\n");
 		fprintf(APD_GLOBALS(dump_file), "Process Pid (%d)\n", getpid());
+		if(APD_GLOBALS(bitmask) & SUMMARY_TRACE) {
+			printUnsortedSummary(elapsed);
+		}
+		fprintf(APD_GLOBALS(dump_file), "---------------------------------------------------------------------------\n");
 		fprintf(APD_GLOBALS(dump_file), "Trace Ended at %s", ctime(&starttime));
 		fprintf(APD_GLOBALS(dump_file), "---------------------------------------------------------------------------\n");
-		if(APD_GLOBALS(bitmask) & SUMMARY_TRACE) {
-			Bucket *p;
-			summary_t* summary;
-			uint i;
-fprintf(APD_GLOBALS(dump_file), "%32s\t\tCalls\tTotal usecs\n", "Function Name");			
-			p = APD_GLOBALS(summary)->pListHead;
-			while(p != NULL) {
-				summary = (summary_t*) p->pData;
-				fprintf(APD_GLOBALS(dump_file), "%32s\t\t%d\t%d\n", p->arKey, summary->calls, summary->totalTime);
-				p = p->pListNext;
-			}
-		}
 	}
 	shutdownTracer();
 	if (APD_GLOBALS(dump_file)) {
@@ -1331,6 +1325,22 @@ ZEND_DLEXPORT void fcallBegin(zend_op_array *op_array)
 	apd_stack_destroy(argStack);
 
 //dumpOpArray(op_array);
+}
+
+void printUnsortedSummary(struct timeval elapsed)
+{
+	Bucket *p;
+	summary_t* summary;
+	uint i;
+
+	fprintf(APD_GLOBALS(dump_file), "%% time     usecs  usecs/call     calls    function\n");
+	fprintf(APD_GLOBALS(dump_file), "-----      -----  ----------     -----    --------\n");
+	p = APD_GLOBALS(summary)->pListHead;
+	while(p != NULL) {
+		summary = (summary_t*) p->pData;
+		fprintf(APD_GLOBALS(dump_file), "%3.2f %10d  %10d  %8d    %s\n", ((float)summary->totalTime)/((float)(100000*elapsed.tv_sec + elapsed.tv_usec)) * 100.0, summary->totalTime, summary->totalTime/summary->calls, summary->calls, p->arKey);
+		p = p->pListNext;
+	}
 }
 
 ZEND_DLEXPORT void fcallEnd(zend_op_array *op_array)
