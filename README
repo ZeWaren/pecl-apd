@@ -9,7 +9,7 @@ Buid/Installation process:
 ----------------------------------------------------------------------------- *
 
     Make sure you have installed the CGI version of PHP and it is available
-    in yuor current path along with the phpize script.
+    in your current path along with the phpize script.
 
     Change into the source directory (either created from the downloaded TAR
     archive or from checking out CVS) an run the following commands:

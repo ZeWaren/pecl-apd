@@ -3,9 +3,9 @@
      generated package.xml files -->
 <package>
     <name>apd</name>
-    <summary>A fully featured engine-level profiler/debugger</summary>
+    <summary>A full-featured engine-level profiler/debugger</summary>
     <description>
-APD is a fully feature profiler/debugger that is loaded as a zend_extension.  It aims to be an analog of C's gprof or Perl's Devel::DProf.
+APD is a full-featured profiler/debugger that is loaded as a zend_extension.  It aims to be an analog of C's gprof or Perl's Devel::DProf.
     </description>
     <license>PHP License</license>
     <maintainers>
