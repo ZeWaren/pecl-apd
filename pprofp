@@ -100,7 +100,20 @@ while($line = fgets($DATA)) {
         continue;
     }
     if( $token == '@') {
-        list($t_utime, $t_stime, $t_rtime) = preg_split("/ /", $data);
+        list($file_no, $line_no, $ut, $st, $rt) = preg_split("/ /", $data);
+        $top = array_pop($callstack);
+        $utimes[$top] += $ut;
+        $utotal += $ut;
+        $stimes[$top] += $st;
+        $stotal += $st;
+        $rtimes[$top] += $rt;
+        $rtotal += $rt;
+        array_push($callstack, $top);
+	foreach ($callstack as $stack_element) {
+            $c_utimes[$stack_element] += $ut;
+            $c_stimes[$stack_element] += $st;
+            $c_rtimes[$stack_element] += $rt;
+        }
         continue;
     }
     if ($token == '-') {
@@ -112,26 +125,6 @@ while($line = fgets($DATA)) {
         $mem[$index] += ($memory - $last_memory);
         $last_memory = $memory;
         $indent_cur--;
-        $utimes[$index] += $t_utime;
-        $utotal += $t_utime;
-        $stimes[$index] += $t_stime;
-        $stotal += $t_stime;
-        $rtimes[$index] += $t_rtime;
-        $rtotal += $t_rtime;
-	$seen = array();
-        foreach ($callstack as $stack_element) {
-            if(array_key_exists($stack_element, $seen)){
-                continue;
-            }
-            $seen[$stack_element] = 1;
-            $c_utimes[$stack_element] += $t_utime;
-            $c_stimes[$stack_element] += $t_stime;
-            $c_rtimes[$stack_element] += $t_rtime;
-        }
-	$t_utime = 0;
-	$t_stime = 0;
-	$t_rtime = 0;
-
         $tmp = array_pop($callstack);
         continue;
     }
