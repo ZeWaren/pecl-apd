@@ -20,17 +20,8 @@ if(($DATA = fopen($dataFile, "r")) == FALSE) {
     exit(1);
 }
 
-while(!feof($DATA)) {
-    $count++;
-    $cfg = array();
-    parse_info('HEADER', $DATA, $cfg);
-    if(array_key_exists('hz', $cfg)) {
-        if($count == 1) {
-            print "File does not appear to be a pprof trace file\n";
-            exit;
-        }
-    }
-}
+$cfg = array();
+parse_info('HEADER', $DATA, $cfg);
 
 $callstack = array();
 $calls = array();
