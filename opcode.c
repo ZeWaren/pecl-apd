@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | APD Profiler & Debugger
    +----------------------------------------------------------------------+
-   | Copyright (c) 2001-2002 Community Connect Inc.
+   | Copyright (c) 2001-2003 Community Connect Inc.
    +----------------------------------------------------------------------+
    | This source file is subject to version 2.02 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -140,4 +140,12 @@ const char* getOpcodeName(int op)
 	return opcodes[op];
 }
 
-
+/**
+ * Local Variables:
+ * indent-tabs-mode: t
+ * c-basic-offset: 4
+ * tab-width: 4
+ * End:
+ * vim600:fdm=marker
+ * vim:noet:sw=4:ts=4
+ */

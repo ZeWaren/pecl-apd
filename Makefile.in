@@ -8,7 +8,7 @@
 PHP_SRC_DIR =
 
 LTLIBRARY_NAME			= libapd.la
-LTLIBRARY_SOURCES		= php_apd.c apd_lib.c opcode.c apd_stack.c
+LTLIBRARY_SOURCES		= php_apd.c apd_lib.c opcode.c apd_array.c apd_summary.c
 LTLIBRARY_SHARED_NAME	= php_apd.la
 LTLIBRARY_SHARED_LIBADD	= $(TRACE_SHARED_LIBADD)
 

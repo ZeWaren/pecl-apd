@@ -1,8 +1,8 @@
 /* 
    +----------------------------------------------------------------------+
-   | APD Profiler & Debugger
+   | APD Profiler & Debugger                                              |
    +----------------------------------------------------------------------+
-   | Copyright (c) 2001-2002 Community Connect Inc.
+   | Copyright (c) 2001-2003 Community Connect Inc.                       |
    +----------------------------------------------------------------------+
    | This source file is subject to version 2.02 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -14,11 +14,14 @@
    +----------------------------------------------------------------------+
    | Authors: Daniel Cowgill <dcowgill@communityconnect.com>              |
    |          George Schlossnagle <george@lethargy.org>                   |
+   |          Sterling Hughes <sterling@php.net>                          |
    +----------------------------------------------------------------------+
 */
 
 #ifndef PHP_APD_H
 #define PHP_APD_H
+
+#include "php.h"
 
 #if PHP_WIN32
 #include "config.w32.h"
@@ -26,9 +29,10 @@
 #include "php_config.h"
 #endif
 
-#include "php.h"
 #include "php_ini.h"
 #include "php_globals.h"
+#include "ext/standard/php_string.h"
+#include "apd_array.h"
 
 #include "zend.h"
 #include "zend_API.h"
@@ -45,6 +49,7 @@
 #include <netinet/tcp.h>
 #include <sys/time.h>
 #include <sys/times.h>
+#include <sys/resource.h>
 #include <unistd.h>
 #else /* windows */
 /* these are from ext/socket -- probably worth just copying the files into apd? */
@@ -64,24 +69,15 @@ void apd_interactive ();
 // ---------------------------------------------------------------------------
 
 /* Declarations of functions to be exported. */
-PHP_FUNCTION(apd_callstack);
-PHP_FUNCTION(apd_cluck);
-PHP_FUNCTION(apd_croak);
-PHP_FUNCTION(apd_dump_regular_resources);
-PHP_FUNCTION(apd_dump_persistent_resources);
 PHP_FUNCTION(override_function);
 PHP_FUNCTION(rename_function);
-PHP_FUNCTION(dump_function_table);
-PHP_FUNCTION(apd_set_session_trace);
 PHP_FUNCTION(apd_set_pprof_trace);
+PHP_FUNCTION(apd_set_browser_trace);
 PHP_FUNCTION(apd_set_session_trace_socket);
-PHP_FUNCTION(apd_set_session);
 
 PHP_FUNCTION(apd_breakpoint);
 PHP_FUNCTION(apd_continue);
 PHP_FUNCTION(apd_echo);
-PHP_FUNCTION(apd_get_active_symbols);
-PHP_FUNCTION(apd_get_function_table);
 
 PHP_MINIT_FUNCTION(apd);
 PHP_RINIT_FUNCTION(apd);
@@ -93,7 +89,7 @@ void printUnsortedSummary(struct timeval TSRMLS_DC);
 extern zend_module_entry apd_module_entry;
 #define apd_module_ptr &apd_module_entry
 
-#define APD_VERSION "0.4p2"
+#define APD_VERSION "0.9"
 
 #define FUNCTION_TRACE 1
 #define ARGS_TRACE 2
@@ -105,21 +101,88 @@ extern zend_module_entry apd_module_entry;
 #define ERROR_TRACE 128
 #define PROF_TRACE 256
 
+typedef struct {
+	int id;
+	char *filename;
+} apd_file_entry_t;
+
+typedef struct _apd_fcall {
+	int   line;
+	int   file;
+	long  usertime;
+	long  systemtime;
+	long  realtime;
+	long  cumulative;
+	int   memory;
+	int   calls;
+	void *entry;
+
+	struct _apd_fcall *next;
+	struct _apd_fcall *prev;
+} apd_fcall_t;
+
+typedef struct _apd_coverage {
+	apd_fcall_t *head;
+	apd_fcall_t *tail;
+
+	int size;
+} apd_coverage_t;
+
+typedef struct {
+	apd_coverage_t coverage;
+	char *name;
+	int   id;
+	int   type;
+} apd_function_entry_t;
+
+
+typedef struct {
+	apd_array_t functions;
+	apd_array_t files;
+	zend_llist  call_list;
+	char *caller;
+} apd_summary_t;
+
+void apd_summary_output_header(void);
+void apd_summary_output_file_reference(int, const char *);
+void apd_summary_output_elapsed_time(int, int, int);
+void apd_summary_output_declare_function(int, const char *, int);
+void apd_summary_output_enter_function(int, int, int);
+void apd_summary_output_exit_function(int, int);
+void apd_summary_output_footer(void);
+
+
+typedef void (*apd_output_header_func_t)(void);
+typedef void (*apd_output_file_reference_func_t)(int, const char *);
+typedef void (*apd_output_elapsed_time_func_t)(int, int, int);
+typedef void (*apd_output_declare_function_func_t)(int, const char *, int);
+typedef void (*apd_output_function_enter_func_t)(int, int, int); 
+typedef void (*apd_output_function_exit_func_t)(int, int);
+typedef void (*apd_output_footer_func_t)(void);
+
+typedef struct {
+	apd_output_header_func_t header;
+	apd_output_footer_func_t footer;
+	apd_output_file_reference_func_t file_reference;
+	apd_output_elapsed_time_func_t  elapsed_time;
+	apd_output_declare_function_func_t declare_function;
+	apd_output_function_enter_func_t enter_function;
+	apd_output_function_exit_func_t exit_function;
+} apd_output_handlers;
+
 ZEND_BEGIN_MODULE_GLOBALS(apd)
 	void* stack;
-	HashTable* summary;
+	HashTable* function_summary;
 	HashTable* file_summary;
 	char* dumpdir; /* directory for dumping seesion traces to */
 	FILE* dump_file; /* FILE for dumping session traces to */
 	FILE* pprof_file; /* File for profiling output */
 	int dump_sock_id; /* Socket for dumping data to */
-	struct timeval req_begin;  /* Time the request began */
-	struct timeval lasttime;  /* Last time recorded */
-	clock_t firstclock;  /* Last time recorded */
-	clock_t lastclock;  /* Last time recorded */
-	struct tms firsttms;  /* Last time recorded */
-	struct tms lasttms;  /* Last time recorded */
-	int index;                /* current index of functions for pprof tracing */
+    struct timeval first_clock;
+    struct timeval last_clock;
+	struct rusage first_ru;
+	struct rusage last_ru;
+	int function_index;                /* current index of functions for pprof tracing */
 	int file_index;                /* current index of functions for pprof tracing */
 	long bitmask;              /* Bitmask for determining what gets logged */
 	long pproftrace;           /* Flag for whether we are doing profiling */
@@ -128,7 +191,12 @@ ZEND_BEGIN_MODULE_GLOBALS(apd)
 	int interactive_mode;     /* is interactive mode on */
 	int ignore_interactive;   /* ignore interactive mode flag for executing php from the debugger*/
 	int allocated_memory;
+	apd_output_handlers output;
+	apd_summary_t summary;
 ZEND_END_MODULE_GLOBALS(apd)
+
+/* Declare global structure. */
+ZEND_DECLARE_MODULE_GLOBALS(apd);
 
 #ifdef ZTS
 #define APD_GLOBALS(v) TSRMG(apd_globals_id, zend_apd_globals *, v)
@@ -139,3 +207,13 @@ ZEND_END_MODULE_GLOBALS(apd)
 #define phpext_apd_ptr apd_module_ptr
 
 #endif
+
+/**
+ * Local Variables:
+ * indent-tabs-mode: t
+ * c-basic-offset: 4
+ * tab-width: 4
+ * End:
+ * vim600:fdm=marker
+ * vim:noet:sw=4:ts=4
+ */

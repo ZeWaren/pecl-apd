@@ -1,6 +1,3 @@
-#include "win32compat.h"
-
-
 /*****************************************************************************
  *                                                                           *
  * DH_TIME.C                                                                 *
@@ -25,7 +22,6 @@
   *   - Added patch by "Vanhanen, Reijo" <Reijo.Vanhanen@helsoft.fi>
   *     Improves accuracy of msec
   */
-
 int FiletimeToTimeval(FILETIME ft, struct timeval *time_Info) 
 {
 	__int64 ff;
@@ -170,3 +166,38 @@ clock_t times (struct tms *__buffer)
 	*/
 	return GetTickCount();
 }
+
+int getrusage(int processes, struct rusage *rusage)
+{
+	HANDLE cp;
+    FILETIME CreationTime, ExitTime, KernelTime, UserTime;
+	/* If times fails, a -1 is returned and errno is	set to indicate	the error. */
+
+    if (rusage == (struct rusage *) NULL) {
+        errno = EFAULT;
+        return -1;
+    }
+
+	memset(rusage, 0, sizeof(rusage));
+    cp = GetCurrentProcess();
+	GetProcessTimes(cp, &CreationTime, &ExitTime, &KernelTime, &UserTime);
+
+    switch (processes) {
+    case RUSAGE_SELF:
+		FiletimeToTimeval(UserTime,&rusage->ru_utime);
+		FiletimeToTimeval(KernelTime,&rusage->ru_stime);
+        break;
+	/*
+		XXX no support for children times yet
+    case RUSAGE_CHILDREN:
+        u = tms.tms_cutime;
+        s = tms.tms_cstime;
+        break;
+	*/
+    default:
+        errno = EINVAL;
+        return -1;
+    }
+    return 0;
+}
+

@@ -16,7 +16,7 @@ APD is a full-featured profiler/debugger that is loaded as a zend_extension.  It
         </maintainer>
     </maintainers>
      <release>
-        <version>0.4p2</version>
+        <version>0.9</version>
         <date>2002-11-25</date>
         <state>stable</state>
         <notes>
@@ -31,8 +31,6 @@ APD is a full-featured profiler/debugger that is loaded as a zend_extension.  It
             <file role="src">apd.dsp</file>
             <file role="src">apd_lib.c</file>
             <file role="src">apd_lib.h</file>
-            <file role="src">apd_stack.c</file>
-            <file role="src">apd_stack.h</file>
             <file role="src">build</file>
             <file role="src">config.m4</file>
             <file role="src">opcode.c</file>

@@ -21,9 +21,6 @@ if(($DATA = fopen($dataFile, "r")) == FALSE) {
 }
 
 parse_info('HEADER', $DATA, $cfg);
-if(!array_key_exists('hz', $cfg)) {
-    print "File does not appear to be a pprof trace file\n";
-}
 
 $callstack = array();
 $calls = array();
@@ -69,7 +66,7 @@ while($line = fgets($DATA)) {
         array_push($callstack, $index_cur);
         if(array_key_exists('T', $opt)) {
             if(array_key_exists('c', $opt)) {
-                printf("%2.02f ", $rtotal/$cfg['hz']);
+                printf("%2.02f ", $rtotal/1000000);
             }
             print str_repeat("  ", $indent_cur).$symbol_hash[$index_cur]."\n";
 	    if(array_key_exists('m', $opt)) {
@@ -85,7 +82,7 @@ while($line = fgets($DATA)) {
                     $repstr = ' ('.++$repcnt.'x)';
                 }
                 if(array_key_exists('c', $opt)) {
-                    printf("%2.02f ", $rtotal/$cfg['hz']);
+                    printf("%2.02f ", $rtotal/1000000);
                 }
                 print str_repeat("  ", $indent_last).$symbol_hash[$index_last].$repstr."\n";
 		if(array_key_exists('m', $opt)) {
@@ -158,7 +155,7 @@ Trace for %s
 Total Elapsed Time = %4.2f
 Total System Time  = %4.2f
 Total User Time    = %4.2f
-", $cfg['caller'], $rtotal/$cfg['hz'], $stotal/$cfg['hz'], $utotal/$cfg['hz']);
+", $cfg['caller'], $rtotal/1000000, $stotal/1000000, $utotal/1000000);
 print "\n
          Real         User        System             secs/    cumm
 %Time (excl/cumm)  (excl/cumm)  (excl/cumm) Calls    call    s/call  Memory Usage Name
@@ -176,12 +173,12 @@ foreach (array_keys($symbol_hash) as $j) {
     if ($l++ <  $opt['O']) {
         $pcnt = 100*($stimes[$j] + $utimes[$j])/($utotal + $stotal + $itotal);
         $c_pcnt = 100* ($c_stimes[$j] + $c_utimes[$j])/($utotal + $stotal + $itotal);
-        $rsecs = $rtimes[$j]/$cfg['hz'];
-        $ssecs = $stimes[$j]/$cfg['hz'];
-        $usecs = $utimes[$j]/$cfg['hz'];
-        $c_rsecs = $c_rtimes[$j]/$cfg['hz'];
-        $c_ssecs = $c_stimes[$j]/$cfg['hz'];
-        $c_usecs = $c_utimes[$j]/$cfg['hz'];
+        $rsecs = $rtimes[$j]/1000000;
+        $ssecs = $stimes[$j]/1000000;
+        $usecs = $utimes[$j]/1000000;
+        $c_rsecs = $c_rtimes[$j]/1000000;
+        $c_ssecs = $c_stimes[$j]/1000000;
+        $c_usecs = $c_utimes[$j]/1000000;
         $ncalls = $calls[$j];
 	if(array_key_exists('z', $opt)) {
         	$percall = ($usecs + $ssecs)/$ncalls;
