@@ -15,6 +15,7 @@
 #ifndef PHP_APD_H
 #define PHP_APD_H
 
+#include "config.h"
 #include "php.h"
 #include "php_ini.h"
 #include "php_globals.h"
@@ -30,6 +31,8 @@
 
 extern zend_module_entry apd_module_entry;
 #define apd_module_ptr &apd_module_entry
+
+#define APD_VERSION "0.1"
 
 #define FUNCTION_TRACE 1
 #define ARGS_TRACE 2
