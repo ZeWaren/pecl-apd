@@ -20,11 +20,11 @@
 #ifndef PHP_APD_H
 #define PHP_APD_H
 
-#ifndef PHP_WIN32
-#include "config.h"
-#endif
-
+#if PHP_WIN32
+#include "config.w32.h"
+#else
 #include "php_config.h"
+#endif
 
 #include "php.h"
 #include "php_ini.h"
