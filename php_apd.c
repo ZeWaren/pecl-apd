@@ -108,27 +108,26 @@ ZEND_DLEXPORT zend_op_array* apd_compile_file(zend_file_handle* zfh TSRMLS_DC)
 
 void apd_dump_fprintf(const char* fmt, ...)
 {
-   va_list args;
-        char* newStr;
+    va_list args;
+    char* newStr;
+    TSRMLS_FETCH();    
+    va_start(args, fmt);
+    newStr = apd_sprintf_real(fmt, args);
+    va_end(args);
         
-    
-   va_start(args, fmt);
-        newStr = apd_sprintf_real(fmt, args);
-        va_end(args);
-        
-        if (APD_GLOBALS(dump_file) != NULL) {
-            fprintf(APD_GLOBALS(dump_file), newStr);
-        } else if ( APD_GLOBALS(dump_sock_id) > 0)  {
+    if (APD_GLOBALS(dump_file) != NULL) {
+        fprintf(APD_GLOBALS(dump_file), newStr);
+    } else if ( APD_GLOBALS(dump_sock_id) > 0)  {
 #ifndef PHP_WIN32
-                 write(APD_GLOBALS(dump_sock_id), newStr, strlen (newStr) + 1);
+    write(APD_GLOBALS(dump_sock_id), newStr, strlen (newStr) + 1);
                  
 #else
-            send(APD_GLOBALS(dump_sock_id), newStr, strlen (newStr) + 1, 0);
-                 send(APD_GLOBALS(dump_sock_id), "OUT\n", 4,0);
+    send(APD_GLOBALS(dump_sock_id), newStr, strlen (newStr) + 1, 0);
+        send(APD_GLOBALS(dump_sock_id), "OUT\n", 4,0);
 #endif
-        }
+    }
         
-        apd_efree(newStr);
+    apd_efree(newStr);
          
 }
 
@@ -1082,6 +1081,8 @@ PHP_FUNCTION(dump_function_table)
 
 void apd_dump_session_start() {
         time_t starttime;
+        TSRMLS_FETCH();
+
         starttime = time(0);
         apd_dump_fprintf("\n\nAPD - Advanced PHP Debugger Trace File\n");
         apd_dump_fprintf("---------------------------------------------------------------------------\n");
