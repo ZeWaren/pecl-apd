@@ -1,3 +1,13 @@
+/* ==================================================================
+ * APD Profiler/Debugger
+ * Copyright (c) 2001 Community Connect, Inc.
+ * All rights reserved.
+ * ==================================================================
+ * Daniel Cowgill <dan@mail.communityconnect.com>
+ * George Schlossnagle <george@lethargy.org>
+ * ==================================================================
+*/
+
 #include "apd_lib.h"
 #include <stdarg.h>
 #include <stdio.h>
