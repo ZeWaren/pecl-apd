@@ -30,8 +30,20 @@
 #include "zend_extensions.h"
 
 #ifndef PHP_WIN32
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/time.h>
 #include <unistd.h>
+#else /* windows */
+/* these are from ext/socket -- probably worth just copying the files into apd? */
+# include <winsock.h>
+# include "php_sockets.h"
+# include "php_sockets_win.h"
+# define IS_INVALID_SOCKET(a)  (a->bsd_socket == INVALID_SOCKET)
 #endif
 
 // ---------------------------------------------------------------------------
@@ -48,6 +60,7 @@ PHP_FUNCTION(override_function);
 PHP_FUNCTION(rename_function);
 PHP_FUNCTION(dump_function_table);
 PHP_FUNCTION(apd_set_session_trace);
+PHP_FUNCTION(apd_set_session_trace_socket);
 
 PHP_MINIT_FUNCTION(apd);
 PHP_RINIT_FUNCTION(apd);
@@ -75,6 +88,7 @@ ZEND_BEGIN_MODULE_GLOBALS(apd)
 	HashTable* summary;
 	char* dumpdir; /* directory for dumping seesion traces to */
 	FILE* dump_file; /* FILE for dumping session traces to */
+        int dump_sock_id; /* Socket for dumping data to */
 	struct timeval req_begin;  /* Time the request began */
 	long bitmask;              /* Bitmask for determining what gets logged */
 	void* last_mem_header;		/* tail of persistent zend_mem_header list */

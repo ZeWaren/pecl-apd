@@ -185,13 +185,20 @@ void apd_strncat(char** dst, int* curSize, const char* src, int srcLen)
 char* apd_sprintf(const char* fmt, ...)
 {
 	char* newStr;
-	int size;
 	va_list args;
 
-	size = 1;
-	newStr = (char*) apd_emalloc(size);
-
 	va_start(args, fmt);
+        newStr = apd_sprintf_real(fmt, args);
+        va_end(args);
+        return newStr;
+}
+
+/* apd_sprintf_real: the meat of the safe, automatic sprintf */
+char* apd_sprintf_real(const char* fmt, va_list args)
+{
+       char* newStr;
+       int size;
+        
 	for (;;) {
 		int n = vsnprintf(newStr, size, fmt, args);
 		if (n > -1 && n < size) {

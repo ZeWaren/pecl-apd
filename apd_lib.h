@@ -42,6 +42,7 @@ extern double apd_timerreport(void);
 extern void  apd_strcat (char** dst, int* curSize, const char* src);
 extern void apd_strncat(char** dst, int* curSize, const char* src, int srcLen);
 extern char* apd_sprintf(const char* fmt, ...);
+extern char* apd_sprintf_real(const char* fmt, va_list args);
 /* sprintf's to the end of a string.  reallocates automatically */
 extern char* apd_sprintcatf(char** dst, const char* fmt, ...);
 /* indents a string by the specified amount */

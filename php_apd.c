@@ -26,9 +26,19 @@
 
 #ifdef PHP_WIN32
 #include "win32compat.h"
+# define APD_IS_INVALID_SOCKET(a)   (a == INVALID_SOCKET)
 #else
 #include <sys/time.h>
 #include <unistd.h>
+# define APD_IS_INVALID_SOCKET(a)   (a < 0)
+#endif
+
+#ifndef SUN_LEN
+#define SUN_LEN(su) (sizeof(*(su)) - sizeof((su)->sun_path) + strlen((su)->sun_path))
+#endif
+
+#ifndef PF_INET
+#define PF_INET AF_INET
 #endif
 
 // ---------------------------------------------------------------------------
@@ -54,6 +64,7 @@ function_entry apd_functions[] = {
 	PHP_FE(rename_function, NULL)
 	PHP_FE(dump_function_table, NULL)
 	PHP_FE(apd_set_session_trace, NULL)
+        PHP_FE(apd_set_session_trace_socket, NULL)
 	{NULL, NULL, NULL}
 };
 
@@ -81,10 +92,48 @@ ZEND_DLEXPORT zend_op_array* apd_compile_file(zend_file_handle* zfh TSRMLS_DC)
 		gettimeofday(&end, NULL);
 		timevaldiff(&end, &APD_GLOBALS(req_begin), &elapsed);
 		timevaldiff(&end, &begin, &diff);
-		fprintf(APD_GLOBALS(dump_file), "(%3d.%06d): Exited zend_compile file. Elaspsed (%d.%06d)\n", elapsed.tv_sec, elapsed.tv_usec, diff.tv_sec, diff.tv_usec);
+                apd_dump_fprintf("(%3d.%06d): Entered zend_compile file.\n", 
+                    elapsed.tv_sec, elapsed.tv_usec);
 	}
 	return ret_op_array;
 }
+
+
+
+// ---------------------------------------------------------------------------
+// apd_dump_fprintf - Outputer - either to file or socket
+// ---------------------------------------------------------------------------
+
+
+
+void apd_dump_fprintf(const char* fmt, ...)
+{
+   va_list args;
+        char* newStr;
+        
+    
+   va_start(args, fmt);
+        newStr = apd_sprintf_real(fmt, args);
+        va_end(args);
+        
+        if (APD_GLOBALS(dump_file) != NULL) {
+            fprintf(APD_GLOBALS(dump_file), newStr);
+        } else if ( APD_GLOBALS(dump_sock_id) > 0)  {
+#ifndef PHP_WIN32
+                 write(APD_GLOBALS(dump_sock_id), newStr, strlen (newStr) + 1);
+                 
+#else
+            send(APD_GLOBALS(dump_sock_id), newStr, strlen (newStr) + 1, 0);
+                 send(APD_GLOBALS(dump_sock_id), "OUT\n", 4,0);
+#endif
+        }
+        
+        apd_efree(newStr);
+         
+}
+
+
+
 // ---------------------------------------------------------------------------
 // Call Tracing (Application-specific Code)
 // ---------------------------------------------------------------------------
@@ -375,8 +424,8 @@ static void traceFunctionEntry(
 		apd_strcat(&line, &curSize, tmp);
 		apd_efree(tmp);
 	}
-	if(APD_GLOBALS(bitmask) && APD_GLOBALS(dump_file)) {
-		fprintf(APD_GLOBALS(dump_file), "%s", line);
+        if(APD_GLOBALS(bitmask)) {
+                apd_dump_fprintf( "%s", line);
 		if(line) {
 			apd_efree(line);
 		}
@@ -392,7 +441,7 @@ static void traceFunctionEntry(
 				entry->args[j].argName, entry->args[j].strVal);
 			curSize = strlen(argline) ;
 			apd_strcat(&argline, &curSize, tmp);
-			fprintf(APD_GLOBALS(dump_file), "%s", argline);
+                        apd_dump_fprintf("%s", argline);
 			apd_efree(argline);
 		}
 	}
@@ -412,7 +461,7 @@ static void traceFunctionEntry(
 #if MEMORY_LIMIT
 		apd_indent(&memline, 2*(print_indent + 7));
 		apd_sprintcatf(&memline, "Memory usage: %d\n", AG(allocated_memory)); // FIXME
-		fprintf(APD_GLOBALS(dump_file), "%s", memline);
+                apd_dump_fprintf( "%s", memline);
 		apd_efree(memline);
 		memline = NULL;
 #endif
@@ -518,8 +567,8 @@ static void traceFunctionExit()
 	apd_strcat(&line, &curSize, tmp);
 	apd_efree(tmp);
   }
-  if(APD_GLOBALS(bitmask) && APD_GLOBALS(dump_file)) {
-    fprintf(APD_GLOBALS(dump_file), "%s", line);
+  if(APD_GLOBALS(bitmask)) {
+        apd_dump_fprintf( "%s", line);
 	apd_efree(line);
   }
 }
@@ -590,8 +639,8 @@ static void apd_error_cb(int type, const char *error_filename, const uint error_
     curSize = strlen(line) ;
     apd_strcat(&line, &curSize, tmp);
     apd_efree(tmp);
-    if(APD_GLOBALS(bitmask) && APD_GLOBALS(dump_file)) {
-      fprintf(APD_GLOBALS(dump_file), "%s", line);
+    if(APD_GLOBALS(bitmask)) {
+      apd_dump_fprintf( "%s", line);
       apd_efree(line);
     }
   }
@@ -661,7 +710,8 @@ PHP_MINIT_FUNCTION(apd)
 {
 	ZEND_INIT_MODULE_GLOBALS(apd, php_apd_init_globals, NULL);
 	REGISTER_INI_ENTRIES();
-	
+        REGISTER_LONG_CONSTANT("APD_AF_UNIX",      AF_UNIX,        CONST_CS | CONST_PERSISTENT);
+        REGISTER_LONG_CONSTANT("APD_AF_INET",       AF_INET,        CONST_CS | CONST_PERSISTENT);
 #ifdef TRACE_ZEND_COMPILE /* we can trace the time to compile things. */
 	gettimeofday(&APD_GLOBALS(req_begin), NULL);
 //	gettimeofday(&APD_GLOBALS(last_call), NULL);
@@ -680,6 +730,7 @@ PHP_RINIT_FUNCTION(apd)
 //	APD_GLOBALS(last_mem_header) = AG(head)->pLast;
 //	APD_GLOBALS(last_pmem_header) = AG(phead)->pLast;
 	APD_GLOBALS(dump_file) = stderr;
+        APD_GLOBALS(dump_sock_id) = 0;
 	APD_GLOBALS(bitmask) = 0;
 	APD_GLOBALS(summary) = (HashTable*) emalloc(sizeof(HashTable));
 	zend_hash_init(APD_GLOBALS(summary), 0, NULL, NULL, 0);
@@ -697,20 +748,26 @@ PHP_RSHUTDOWN_FUNCTION(apd)
 		starttime = time(0);
 		gettimeofday(&req_end, NULL);
 		timevaldiff(&req_end, &APD_GLOBALS(req_begin), &elapsed);
-		fprintf(APD_GLOBALS(dump_file), "(%3d.%06d): RSHUTDOWN called - end of trace\n", elapsed.tv_sec, elapsed.tv_usec);
-    	fprintf(APD_GLOBALS(dump_file), "---------------------------------------------------------------------------\n");
+		apd_dump_fprintf("(%3d.%06d): RSHUTDOWN called - end of trace\n", elapsed.tv_sec, elapsed.tv_usec);
+    	        apd_dump_fprintf("---------------------------------------------------------------------------\n");
 		fprintf(APD_GLOBALS(dump_file), "Process Pid (%d)\n", getpid());
 		if(APD_GLOBALS(bitmask) & SUMMARY_TRACE) {
 			printUnsortedSummary(elapsed TSRMLS_CC);
 		}
-		fprintf(APD_GLOBALS(dump_file), "---------------------------------------------------------------------------\n");
-		fprintf(APD_GLOBALS(dump_file), "Trace Ended at %s", ctime(&starttime));
-		fprintf(APD_GLOBALS(dump_file), "---------------------------------------------------------------------------\n");
+		apd_dump_fprintf("---------------------------------------------------------------------------\n");
+		apd_dump_fprintf("Trace Ended at %s", ctime(&starttime));
+		apd_dump_fprintf("---------------------------------------------------------------------------\n");
 	}
 	shutdownTracer();
 	if (APD_GLOBALS(dump_file)) {
 		fclose(APD_GLOBALS(dump_file));
 	}
+        if (APD_GLOBALS(dump_sock_id)) {
+            close(APD_GLOBALS(dump_sock_id));
+            /* bit academic - but may as well */
+            APD_GLOBALS(dump_sock_id)=0;
+        }
+       
 	zend_hash_destroy(APD_GLOBALS(summary));
 	efree(APD_GLOBALS(summary));
 	return SUCCESS;
@@ -1023,6 +1080,19 @@ PHP_FUNCTION(dump_function_table)
 	RETURN_TRUE;
 }
 
+void apd_dump_session_start() {
+        time_t starttime;
+        starttime = time(0);
+        apd_dump_fprintf("\n\nAPD - Advanced PHP Debugger Trace File\n");
+        apd_dump_fprintf("---------------------------------------------------------------------------\n");
+        apd_dump_fprintf("Process Pid (%d)\n", getpid());
+        apd_dump_fprintf("Trace Begun at %s", ctime(&starttime));
+        apd_dump_fprintf("---------------------------------------------------------------------------\n");
+        apd_dump_fprintf("(  0.000000): apd_set_session_trace called at %s:%d\n", zend_get_executed_filename(TSRMLS_C), zend_get_executed_lineno(TSRMLS_C)); 
+
+}
+
+
 PHP_FUNCTION(apd_set_session_trace) 
 {
 	int issock =0;
@@ -1072,14 +1142,86 @@ PHP_FUNCTION(apd_set_session_trace)
 		zend_error(E_ERROR, "%s() failed to open %s for tracing", get_active_function_name(TSRMLS_C), path);
 	}	
 	efree(path);
-	starttime = time(0);
-	fprintf(APD_GLOBALS(dump_file), "\n\nAPD - Advanced PHP Debugger Trace File\n");
-	fprintf(APD_GLOBALS(dump_file), "---------------------------------------------------------------------------\n");
-	fprintf(APD_GLOBALS(dump_file), "Process Pid (%d)\n", getpid());
-	fprintf(APD_GLOBALS(dump_file), "Trace Begun at %s", ctime(&starttime));
-	fprintf(APD_GLOBALS(dump_file), "---------------------------------------------------------------------------\n");
-	fprintf(APD_GLOBALS(dump_file), "(  0.000000): apd_set_session_trace called at %s:%d\n", zend_get_executed_filename(TSRMLS_C), zend_get_executed_lineno(TSRMLS_C));
+        apd_dump_session_start();
 }	
+
+/* {{{ proto bool apd_set_session_trace_socket(string ip_or_filename, int domain, int port, int mask)
+   Connects to a socket either unix domain or tcpip and sends data there*/
+
+PHP_FUNCTION(apd_set_session_trace_socket) 
+{
+    
+    char *address;
+    int address_len;
+    
+    int sock_domain;
+    int sock_port;
+    int bitmask;
+    int connect_result;
+   
+    struct sockaddr_in si;
+    struct sockaddr_un su;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, 
+                "slll", &address,&address_len, &sock_domain, &sock_port,&bitmask) == FAILURE) 
+    {
+        return;
+    }
+    APD_GLOBALS(bitmask) = bitmask;
+    APD_GLOBALS(dump_file)=NULL;
+        
+    /* now for the socket stuff */
+        
+    if (sock_domain != AF_UNIX && sock_domain != AF_INET) {
+        php_error(E_WARNING, "%s() invalid socket domain [%d] specified for argument 2, assuming AF_INET", get_active_function_name(TSRMLS_C), sock_domain);
+       sock_domain = AF_INET;
+    }
+        
+    APD_GLOBALS(dump_sock_id) = socket(sock_domain, SOCK_STREAM, 0);
+    if (APD_IS_INVALID_SOCKET(APD_GLOBALS(dump_sock_id))) {
+    /* this may not work = it assumes that 0 would be an invalid socket! */
+        APD_GLOBALS(dump_sock_id)=0;
+        RETURN_FALSE;
+    }
+    /* now connect it */
+    switch(sock_domain) {
+        case AF_UNIX:
+        {
+            su.sun_family = AF_UNIX;
+            strncpy (su.sun_path, address, sizeof (su.sun_path));
+            if (connect(APD_GLOBALS(dump_sock_id), (struct sockaddr *) &su, SUN_LEN(&su)) < 0)
+            {
+                php_error(E_WARNING, "%s() failed to connect to  [%s]", get_active_function_name(TSRMLS_C), address);
+                APD_GLOBALS(dump_sock_id)=0;
+                RETURN_FALSE;
+            }
+            break;
+        }
+        case AF_INET:
+        {
+            struct hostent *hp;
+            si.sin_family = AF_INET;
+            si.sin_port = htons (sock_port);
+            hp = gethostbyname (address);
+            if (hp == NULL) 
+            {
+                php_error(E_WARNING, "%s() failed to get host by name  [%s]", get_active_function_name(TSRMLS_C), address);
+                APD_GLOBALS(dump_sock_id)=0;
+                RETURN_FALSE;
+            }
+            si.sin_addr = *(struct in_addr *) hp->h_addr;
+            connect_result = connect(APD_GLOBALS(dump_sock_id), (struct sockaddr *) &si, sizeof (si));
+            if (0 > connect_result)
+            {
+                php_error(E_WARNING, "%s() failed to connect to  [%s:%d] %d", get_active_function_name(TSRMLS_C), address,sock_port,connect_result);
+                APD_GLOBALS(dump_sock_id)=0;
+                RETURN_FALSE;
+            }
+            break;
+        }
+    }
+    apd_dump_session_start();
+}
 
 // ---------------------------------------------------------------------------
 // Zend Extension Functions
@@ -1386,12 +1528,12 @@ void printUnsortedSummary(struct timeval elapsed TSRMLS_DC)
 	summary_t* summary;
 	uint i;
 
-	fprintf(APD_GLOBALS(dump_file), "%% time     usecs  usecs/call     calls    function\n");
-	fprintf(APD_GLOBALS(dump_file), "-----      -----  ----------     -----    --------\n");
+	apd_dump_fprintf("%% time     usecs  usecs/call     calls    function\n");
+	apd_dump_fprintf("-----      -----  ----------     -----    --------\n");
 	p = APD_GLOBALS(summary)->pListHead;
 	while(p != NULL) {
 		summary = (summary_t*) p->pData;
-		fprintf(APD_GLOBALS(dump_file), "%3.2f %10d  %10d  %8d    %s\n", ((float)summary->totalTime)/((float)(100000*elapsed.tv_sec + elapsed.tv_usec)) * 100.0, summary->totalTime, summary->totalTime/summary->calls, summary->calls, p->arKey);
+		apd_dump_fprintf("%3.2f %10d  %10d  %8d    %s\n", ((float)summary->totalTime)/((float)(100000*elapsed.tv_sec + elapsed.tv_usec)) * 100.0, summary->totalTime, summary->totalTime/summary->calls, summary->calls, p->arKey);
 		p = p->pListNext;
 	}
 }
