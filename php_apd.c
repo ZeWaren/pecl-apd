@@ -129,7 +129,7 @@ void apd_dump_fprintf(const char* fmt, ...)
     va_end(args);
         
     if (APD_GLOBALS(dump_file) != NULL) {
-        fprintf(APD_GLOBALS(dump_file), newStr);
+        fprintf(APD_GLOBALS(dump_file), "%s", newStr);
     } else if ( APD_GLOBALS(dump_sock_id) > 0)  {
 #ifndef PHP_WIN32
     write(APD_GLOBALS(dump_sock_id), newStr, strlen (newStr) + 1);
@@ -264,6 +264,7 @@ struct CallStackEntry {
 	CallArg* args;			// parameter list
 	char *filename;			// location of call
 	int lineNum;			// location of call
+        int type;                       // internal or user function
 	struct timeval func_begin;  // time of function call
     clock_t clock_begin;        // clock ticks for func call begin
 };
@@ -364,7 +365,7 @@ static CallStackEntry* mkCallStackEntry(
 										int lineNum)
 {
 	CallStackEntry* entry;
-	zend_function *z_func;
+	zend_function *z_func = NULL;
 	TSRMLS_FETCH();
 
 	entry = (CallStackEntry*) apd_emalloc(sizeof(CallStackEntry));
@@ -448,7 +449,11 @@ static CallStackEntry* mkCallStackEntry(
 			j++;
 		}
 	}
-
+	if(z_func) {
+		entry->type = z_func->type;
+	} else {
+                entry->type = ZEND_INTERNAL_FUNCTION;
+        }
 	return entry;
 }
 
@@ -564,7 +569,7 @@ static void traceFunctionEntry(
             summaryStats->index = ++APD_GLOBALS(index);
             summaryStats->totalTime = 0;
             zend_hash_add(APD_GLOBALS(summary), entry->functionName, strlen(entry->functionName) + 1, summaryStats, sizeof(summary_t), NULL);
-            apd_pprof_fprintf("& %d %s\n", summaryStats->index, entry->functionName);
+            apd_pprof_fprintf("& %d %s %d\n", summaryStats->index, entry->functionName, entry->type);
             apd_pprof_fprintf("+ %d\n", summaryStats->index);
         }
     }
@@ -1339,7 +1344,7 @@ void apd_pprof_header() {
         apd_pprof_fprintf("hz=%d\n", sysconf(_SC_CLK_TCK));
 	apd_pprof_fprintf("caller=%s\n",zend_get_executed_filename(TSRMLS_C));
         apd_pprof_fprintf("\nEND_HEADER\n");
-        apd_pprof_fprintf("& 1 apd_set_session_trace\n+ 1\n");
+        apd_pprof_fprintf("& 1 apd_set_session_trace 2\n+ 1\n");
 
 }
 

@@ -21,6 +21,7 @@
 #define INCLUDED_APD_LIB
 
 #include <stdlib.h>
+#include <sys/time.h>
 #include "zend.h"
 
 /* wrappers for memory allocation routines */

@@ -4,7 +4,7 @@ require "Console/Getopt.php";
 $con = new Console_Getopt;
 $args = $con->readPHPArgv();
 array_shift($args);
-$shortoptions = 'achlMrRsStTuUO:vz';
+$shortoptions = 'achiIlMrRsStTuUO:vzZ';
 $retval = $con->getopt( $args, $shortoptions);
 if(is_object($retval)) {
     usage();
@@ -32,12 +32,17 @@ while($line = fgets($DATA)) {
     }
     list($token, $data) = preg_split("/ /",$line, 2);
     if( $token == '&') {
-        list ($index, $name) = preg_split("/ /", $data, 2);
+        list ($index, $name, $type) = preg_split("/ /", $data, 3);
         $symbol_hash[$index] = $name;
+	$symbol_type[$index] = $type;
         continue;
     }
     if( $token == '+') {
-        list($index_cur, $notes) = preg_split("/ /",$data, 2);
+        list($index, $notes) = preg_split("/ /",$data, 2);
+        if(array_key_exists('i',$opt) && $symbol_type[$index] == 1) {
+            continue;
+        }	
+        $index_cur = $index;
         $calls[$index_cur]++;
         array_push($callstack, $index_cur);
         if(array_key_exists('T', $opt)) {
@@ -73,6 +78,10 @@ while($line = fgets($DATA)) {
     }
     if ($token == '-') {
         list  ($index, $notes) = preg_split("/ /", $data, 2);
+        if(array_key_exists('i',$opt) && $symbol_type[$index] == 1)
+        {
+            continue;
+        }
         $indent_cur--;
         $utimes[$index] += $t_utime;
         $utotal += $t_utime;
@@ -80,7 +89,12 @@ while($line = fgets($DATA)) {
         $stotal += $t_stime;
         $rtimes[$index] += $t_rtime;
         $rtotal += $t_rtime;
+	$seen = array();
         foreach ($callstack as $stack_element) {
+            if(array_key_exists($stack_element, $seen)){
+                continue;
+            }
+            $seen[$stack_element] = 1;
             $c_utimes[$stack_element] += $t_utime;
             $c_stimes[$stack_element] += $t_stime;
             $c_rtimes[$stack_element] += $t_rtime;
@@ -104,6 +118,7 @@ if(array_key_exists('s', $opt)) { $sort = 'by_stime'; }
 if(array_key_exists('S', $opt)) { $sort = 'by_c_stime'; }
 if(array_key_exists('u', $opt)) { $sort = 'by_utime'; }
 if(array_key_exists('U', $opt)) { $sort = 'by_c_utime'; }
+if(array_key_exists('Z', $opt)) { $sort = 'by_c_time'; }
 
 printf("
 Trace for %s
@@ -112,13 +127,16 @@ Total System Time  = %4.2f
 Total User Time    = %4.2f
 ", $cfg['caller'], $rtotal/$cfg['hz'], $stotal/$cfg['hz'], $utotal/$cfg['hz']);
 print "\n
-         Real         User        System           secs/    cumm
-%Time (excl/cumm)  (excl/cumm)  (excl/cumm) Calls  call    s/call Name
-----------------------------------------------------------------------\n";
+         Real         User        System             secs/    cumm
+%Time (excl/cumm)  (excl/cumm)  (excl/cumm) Calls    call    s/call Name
+------------------------------------------------------------------------\n";
 $l = 0;
 //foreach (usort(array_keys($symbol_hash), $sort) as $j) {
 uksort($symbol_hash, $sort);
 foreach (array_keys($symbol_hash) as $j) {
+    if(array_key_exists('i', $opt) && $symbol_type[$j] == 1) {
+        continue;
+    }
     if ($l++ <  $opt['O']) {
         $pcnt = 100*($stimes[$j] + $utimes[$j])/($utotal + $stotal + $itotal);
         $c_pcnt = 100* ($c_stimes[$j] + $c_utimes[$j])/($utotal + $stotal + $itotal);
@@ -135,7 +153,7 @@ foreach (array_keys($symbol_hash) as $j) {
 	}
 	if(array_key_exists('Z', $opt)) {
         	$percall = ($c_usecs + $c_ssecs)/$ncalls;
-		$pcnt = 100*($stimes[$j] + $utimes[$j])/($utotal + $stotal);
+		$pcnt = 100*($c_stimes[$j] + $c_utimes[$j])/($utotal + $stotal);
 	}
 	if(array_key_exists('r', $opt)) {
         	$percall = ($rsecs)/$ncalls;
@@ -163,8 +181,8 @@ foreach (array_keys($symbol_hash) as $j) {
 	}
         $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
         $name = $symbol_hash[$j];
-        printf("%3.01f %2.02f %2.02f  %2.02f %2.02f  %2.02f %2.02f  %4d  %2.02f   %2.02f %s\n", $pcnt, $rsecs, $c_rsecs, $usecs, $c_usecs, $ssecs, $c_ssecs, $ncalls, $percall, $cpercall, $name);
-//        printf("%2.02f %2.02f %2.02f %2.02f %2.02f %2.02f %2.02f   %4d  %2.02f   %2.02f %s\n", $pcnt, $rsecs, $c_rsecs, $usecs, $c_usecs, $ssecs, $c_ssecs, $ncalls, $percall, $cpercall, $name);
+        printf("%3.01f %2.02f %2.02f  %2.02f %2.02f  %2.02f %2.02f  %4d  %2.04f   %2.02f %s\n", $pcnt, $rsecs, $c_rsecs, $usecs, $c_usecs, $ssecs, $c_ssecs, $ncalls, $percall, $cpercall, $name);
+//        printf("%2.02f %2.02f %2.02f %2.02f %2.02f %2.02f %2.02f   %4d  %2.04f   %2.02f %s\n", $pcnt, $rsecs, $c_rsecs, $usecs, $c_usecs, $ssecs, $c_ssecs, $ncalls, $percall, $cpercall, $name);
     }
 }
 
@@ -186,6 +204,7 @@ pprofp <flags> <trace file>
 
     Display options
     -c          Display Real time elapsed alongside call tree.
+    -i          Suppress reporting for php builtin functions
     -O <cnt>    Specifies maximum number of subroutines to display. (default 15)
     -t          Display compressed call tree.
     -T          Display uncompressed call tree.
@@ -218,13 +237,19 @@ function by_time($a,$b) {
     return num_cmp(($stimes[$b] + $utimes[$b]),($stimes[$a] + $utimes[$a]));
 }
 
+function by_c_time($a,$b) {
+    global $c_stimes;
+    global $c_utimes;
+    return num_cmp(($c_stimes[$b] + $c_utimes[$b]),($c_stimes[$a] + $c_utimes[$a]));
+}
+
 function by_avgcpu($a,$b) {
     global $stimes;
     global $utimes;
     global $calls;
     return num_cmp(($stimes[$b] + $utimes[$b])/$calls[$b],($stimes[$a] + $utimes[$a])/$calls[$a]);
 }
-    
+
 function by_calls($a, $b) {
     global $calls;
     return num_cmp($calls[$b], $calls[$a]);
