@@ -463,8 +463,10 @@ static void freeCallStackEntry(CallStackEntry* entry)
 
 	for (i = 0; i < entry->numArgs; i++) {
 		apd_efree(entry->args[i].strVal);
+		apd_efree(entry->args[i].argName);
 	}
-	apd_efree(entry->args);
+	if (entry->numArgs != 0)
+		apd_efree(entry->args);
 
 	apd_efree(entry->functionName);
 	apd_efree(entry->filename);
@@ -502,10 +504,8 @@ static void traceFunctionEntry(
 	struct timeval now;
 	struct timeval elapsed;
 	int i = 0;
-	char *line;
+	char *line = NULL;
 	TSRMLS_FETCH();
-
-	line = apd_estrdup("");
 
 	stack = (CallStack*) APD_GLOBALS(stack);
 
@@ -646,7 +646,6 @@ static void traceFunctionExit()
 
 	stack = (CallStack*) APD_GLOBALS(stack);
  
- 	line = apd_estrdup("");
 	if(print_indent) {	
  		print_indent--;
 	}
@@ -745,6 +744,7 @@ static void traceFunctionExit()
         apd_dump_fprintf( "%s", line);
 	apd_efree(line);
   }
+  freeCallStackEntry(entry);
 }
 
 // --------------------------------------------------------------------------
