@@ -21,7 +21,9 @@
 #define INCLUDED_APD_LIB
 
 #include <stdlib.h>
+#ifndef PHP_WIN32
 #include <sys/time.h>
+#endif
 #include "zend.h"
 
 /* wrappers for memory allocation routines */

@@ -17,6 +17,16 @@
    +----------------------------------------------------------------------+
 */
     
+#ifdef PHP_WIN32
+#include "win32compat.h"
+# define APD_IS_INVALID_SOCKET(a)   (a == INVALID_SOCKET)
+#else
+#include <sys/time.h>
+#include <sys/times.h>
+#include <unistd.h>
+# define APD_IS_INVALID_SOCKET(a)   (a < 0)
+#endif
+
 #include "php_apd.h"
 #include "apd_lib.h"
 #include "opcode.h"
@@ -28,17 +38,7 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <sys/types.h>
-#include <sys/times.h>
 #include <sys/stat.h>
-
-#ifdef PHP_WIN32
-#include "win32compat.h"
-# define APD_IS_INVALID_SOCKET(a)   (a == INVALID_SOCKET)
-#else
-#include <sys/time.h>
-#include <unistd.h>
-# define APD_IS_INVALID_SOCKET(a)   (a < 0)
-#endif
 
 #ifndef SUN_LEN
 #define SUN_LEN(su) (sizeof(*(su)) - sizeof((su)->sun_path) + strlen((su)->sun_path))
@@ -246,7 +246,7 @@ static char* boolToString(int v)
 	return v ? estrdup("true") : estrdup("false");
 }
 
-CallStackEntry *mkCallStackEntry(char *func, char *filename, int linenum, int type)
+CallStackEntry *mkCallStackEntry(const char *func, const char *filename, int linenum, int type)
 {
     CallStackEntry* entry;
     entry = (CallStackEntry*) emalloc(sizeof(CallStackEntry));
@@ -424,9 +424,9 @@ char *apd_get_active_function_name(zend_execute_data *execd, zend_op_array *op_a
 static void traceFunctionEntry(
 		HashTable * func_table,
 		const char* fname,
-                int type,
-                const char *filename,
-                int linenum)
+        int type,
+        const char *filename,
+        int linenum)
 {
     CallStack* stack;
     CallStackEntry* entry;
@@ -699,7 +699,7 @@ ZEND_API void apd_execute(zend_op_array *op_array TSRMLS_DC)
 	int argCount;
 	apd_stack_t* argStack;
 	zval **object_ptr_ptr;
-        fname = apd_get_active_function_name(EG(current_execute_data), op_array);
+        fname = apd_get_active_function_name(EG(current_execute_data), op_array TSRMLS_CC);
 	traceFunctionEntry( EG(function_table), fname, ZEND_USER_FUNCTION,
 		zend_get_executed_filename(TSRMLS_C),
 		zend_get_executed_lineno(TSRMLS_C));
@@ -718,7 +718,7 @@ ZEND_API void apd_execute_internal(zend_execute_data *execute_data_ptr, int retu
 	int argCount;
 	apd_stack_t* argStack;
 	zval **object_ptr_ptr;
-        fname = apd_get_active_function_name(EG(current_execute_data), EG(current_execute_data)->op_array);
+        fname = apd_get_active_function_name(EG(current_execute_data), EG(current_execute_data)->op_array TSRMLS_CC);
 	traceFunctionEntry( EG(function_table), fname, ZEND_INTERNAL_FUNCTION,
 		zend_get_executed_filename(TSRMLS_C),
 		zend_get_executed_lineno(TSRMLS_C));
@@ -1176,31 +1176,32 @@ PHP_FUNCTION(apd_set_session_trace)
         apd_dump_session_start();
 }	
 
-void apd_pprof_header(TSRMLS_DC) {
-        summary_t *summaryStats;
-        char *fname = "main";
-        char *filename;
-        int linenum, *filenum;
-        filename = zend_get_executed_filename(TSRMLS_C);
-        linenum = zend_get_executed_lineno(TSRMLS_C);
-        apd_pprof_fprintf("#Pprof [APD] v0.9\n");
-        apd_pprof_fprintf("hz=%d\n", sysconf(_SC_CLK_TCK));
+void apd_pprof_header(TSRMLS_D) {
+	summary_t *summaryStats;
+	char *fname = "main";
+	char *filename;
+	int linenum, *filenum;
+	filename = zend_get_executed_filename(TSRMLS_C);
+	linenum = zend_get_executed_lineno(TSRMLS_C);
+	apd_pprof_fprintf("#Pprof [APD] v0.9\n");
+#ifdef _SC_CLK_TCK
+	apd_pprof_fprintf("hz=%d\n", sysconf(_SC_CLK_TCK));
+#endif
 	apd_pprof_fprintf("caller=%s\n",zend_get_executed_filename(TSRMLS_C));
-        apd_pprof_fprintf("\nEND_HEADER\n");
-        summaryStats = (summary_t *) emalloc(sizeof(summary_t));
-        summaryStats->calls = 1;
-        summaryStats->index = 1;
-        summaryStats->totalTime = 0;
-        APD_GLOBALS(index) = 1;
-        zend_hash_add(APD_GLOBALS(summary), fname, strlen(fname) + 1, summaryStats, sizeof(summary_t), NULL);
-        filenum = (int *) emalloc(sizeof(int));
-        *filenum = ++APD_GLOBALS(file_index);
-        apd_pprof_fprintf("! %d %s\n", *filenum, filename);
-        zend_hash_add(APD_GLOBALS(file_summary), (char *) filename,
-            strlen(filename) + 1, filenum, sizeof(int), NULL);
-        apd_pprof_fprintf("& %d %s %d\n", summaryStats->index, fname, ZEND_USER_FUNCTION);
-        apd_pprof_fprintf("+ %d %d %d\n", summaryStats->index, *filenum,  linenum);
-
+	apd_pprof_fprintf("\nEND_HEADER\n");
+	summaryStats = (summary_t *) emalloc(sizeof(summary_t));
+	summaryStats->calls = 1;
+	summaryStats->index = 1;
+	summaryStats->totalTime = 0;
+	APD_GLOBALS(index) = 1;
+	zend_hash_add(APD_GLOBALS(summary), fname, strlen(fname) + 1, summaryStats, sizeof(summary_t), NULL);
+	filenum = (int *) emalloc(sizeof(int));
+	*filenum = ++APD_GLOBALS(file_index);
+	apd_pprof_fprintf("! %d %s\n", *filenum, filename);
+	zend_hash_add(APD_GLOBALS(file_summary), (char *) filename,
+		strlen(filename) + 1, filenum, sizeof(int), NULL);
+	apd_pprof_fprintf("& %d %s %d\n", summaryStats->index, fname, ZEND_USER_FUNCTION);
+	apd_pprof_fprintf("+ %d %d %d\n", summaryStats->index, *filenum,  linenum);
 }
 
 PHP_FUNCTION(apd_set_pprof_trace)
@@ -1211,7 +1212,6 @@ PHP_FUNCTION(apd_set_pprof_trace)
     char *dumpdir;
     char *path;
     zval  **z_dumpdir;
-    TSRMLS_FETCH();
 
     if(ZEND_NUM_ARGS() > 1 )
     {

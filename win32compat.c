@@ -17,6 +17,8 @@
 
 /* $Id$ */
 
+#include "win32compat.h"
+
  /**
   *
   * 04-Feb-2001
@@ -119,3 +121,9 @@ int gettimeofday(struct timeval *time_Info, struct timezone *timezone_Info)
 	return 0;
 }
 
+clock_t times (struct tms *__buffer)
+{
+	if (__buffer) {
+		__buffer->tms_utime = clock();
+	}
+}

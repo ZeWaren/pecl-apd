@@ -23,13 +23,20 @@
 #include <time.h>
 
 /* Struct stuff ************************************************************* */
-struct timezone {
-	int tz_minuteswest;
-	int tz_dsttime;
+typedef long clock_t;
+
+struct tms
+{
+    clock_t tms_utime;          /* User CPU time.  */
+    clock_t tms_stime;          /* System CPU time.  */
+
+    clock_t tms_cutime;         /* User CPU time of dead children.  */
+    clock_t tms_cstime;         /* System CPU time of dead children.  */
 };
 
 
 /* Prototype stuff ********************************************************** */
 extern int gettimeofday(struct timeval *time_Info, struct timezone *timezone_Info);
+extern clock_t times (struct tms *__buffer);
 
 #endif

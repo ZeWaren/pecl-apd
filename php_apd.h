@@ -48,7 +48,7 @@
 #include <unistd.h>
 #else /* windows */
 /* these are from ext/socket -- probably worth just copying the files into apd? */
-# include <winsock.h>
+# include "win32compat.h"
 # include "php_sockets.h"
 # include "php_sockets_win.h"
 # define IS_INVALID_SOCKET(a)  (a->bsd_socket == INVALID_SOCKET)
