@@ -530,7 +530,7 @@ ZEND_API void apd_execute_internal(zend_execute_data *execute_data_ptr, int retu
 	zval **object_ptr_ptr;
 	zend_execute_data *execd;
 
-	execd = executor_globals.current_execute_data;
+	execd = EG(current_execute_data);
    	fname = apd_get_active_function_name(execd->op_array TSRMLS_CC);
    	trace_function_entry(EG(function_table), fname, ZEND_INTERNAL_FUNCTION,
 						zend_get_executed_filename(TSRMLS_C),
