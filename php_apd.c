@@ -955,6 +955,7 @@ PHP_FUNCTION(apd_echo)
 
 ZEND_DLEXPORT void onStatement(zend_op_array *op_array)
 {
+	TSRMLS_FETCH();
 	if(APD_GLOBALS(pproftrace) && APD_GLOBALS(statement_tracing)) {
 		log_time(TSRMLS_C);
 	}
