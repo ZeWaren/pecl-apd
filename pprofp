@@ -149,35 +149,75 @@ foreach (array_keys($symbol_hash) as $j) {
         $ncalls = $calls[$j];
 	if(array_key_exists('z', $opt)) {
         	$percall = ($usecs + $ssecs)/$ncalls;
-		$pcnt = 100*($stimes[$j] + $utimes[$j])/($utotal + $stotal);
+                if($utotal + $stotal) {
+		    $pcnt = 100*($stimes[$j] + $utimes[$j])/($utotal + $stotal);
+                }
+                else {
+                    $pcnt = 100;
+                }
 	}
 	if(array_key_exists('Z', $opt)) {
         	$percall = ($c_usecs + $c_ssecs)/$ncalls;
-		$pcnt = 100*($c_stimes[$j] + $c_utimes[$j])/($utotal + $stotal);
+                if($utotal + $stotal) {
+		    $pcnt = 100*($c_stimes[$j] + $c_utimes[$j])/($utotal + $stotal);
+                }
+                else {
+                    $pcnt = 100;
+                }
 	}
 	if(array_key_exists('r', $opt)) {
         	$percall = ($rsecs)/$ncalls;
-		$pcnt = 100*$rtimes[$j]/$rtotal;
+                if($rtotal) {
+		    $pcnt = 100*$rtimes[$j]/$rtotal;
+                }
+                else {
+                    $pcnt = 100;
+                }
 	}
 	if(array_key_exists('R', $opt)) {
         	$percall = ($c_rsecs)/$ncalls;
-		$pcnt = 100*$c_rtimes[$j]/$rtotal;
+                if($rtotal) {
+		    $pcnt = 100*$c_rtimes[$j]/$rtotal;
+                }
+                else {
+                    $pcnt = 100;
+                }
 	}
 	if(array_key_exists('u', $opt)) {
         	$percall = ($usecs)/$ncalls;
-		$pcnt = 100*$utimes[$j]/$utotal;
+                if($utotal) {
+		    $pcnt = 100*$utimes[$j]/$utotal;
+                } 
+                else {
+                    $pcnt = 100;
+                }
 	}
 	if(array_key_exists('U', $opt)) {
         	$percall = ($c_usecs)/$ncalls;
-		$pcnt = 100*$c_utimes[$j]/$utotal;
+                if($utotal) {
+		    $pcnt = 100*$c_utimes[$j]/$utotal;
+                }
+                else {
+                    $pcnt = 100;
+                }
 	}
 	if(array_key_exists('s', $opt)) {
         	$percall = ($ssecs)/$ncalls;
-		$pcnt = 100*$stimes[$j]/$stotal;
+                if($stotal) {
+		    $pcnt = 100*$stimes[$j]/$stotal;
+                }
+                else {
+                    $pcnt = 100;
+                }
 	}
 	if(array_key_exists('S', $opt)) {
         	$percall = ($c_ssecs)/$ncalls;
-		$pcnt = 100*$c_stimes[$j]/$stotal;
+                if($stotal) {
+		    $pcnt = 100*$c_stimes[$j]/$stotal;
+                }
+                else {
+                    $pcnt = 100;
+                }
 	}
         $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
         $name = $symbol_hash[$j];
