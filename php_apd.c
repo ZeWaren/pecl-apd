@@ -616,7 +616,8 @@ PHP_RSHUTDOWN_FUNCTION(apd)
 PHP_MINFO_FUNCTION(apd)
 {
 	php_info_print_table_start();
-	php_info_print_table_header(2, "PHP Debugger", "Enabled");
+	php_info_print_table_header(2, "Advanced PHP Debugger (APD)", "Enabled");
+	php_info_print_table_row(2, "APD Version", APD_VERSION);
 	php_info_print_table_end();
 }
 
@@ -1208,10 +1209,10 @@ ZEND_DLEXPORT void apd_zend_shutdown(zend_extension *extension)
 ZEND_EXTENSION();
 
 ZEND_DLEXPORT zend_extension zend_extension_entry = {
-	"PHP Debugger",
-	"0.0000000002",
+	"Advanced PHP Debugger (APD)",
+	"0.1",
 	"Daniel Cowgill and George Schlossnagle",
-	"http://www.communityconnectinc.com/",
+	"http://apd.communityconnect.com/",
 	"Copyright (c) 2001 Community Connect Inc.",
 	apd_zend_startup,
 	apd_zend_shutdown,
