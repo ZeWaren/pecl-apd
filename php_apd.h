@@ -89,7 +89,7 @@ void printUnsortedSummary(struct timeval TSRMLS_DC);
 extern zend_module_entry apd_module_entry;
 #define apd_module_ptr &apd_module_entry
 
-#define APD_VERSION "0.9"
+#define APD_VERSION "1.0.2-dev"
 
 #define FUNCTION_TRACE 1
 #define ARGS_TRACE 2
