@@ -1213,7 +1213,7 @@ PHP_FUNCTION(apd_set_session_trace)
 	path_len = strlen(dumpdir) + 1 + strlen("apd_dump_") + 5;
 	path = (char *) emalloc((path_len + 1)* sizeof(char) );
 	snprintf(path, path_len + 1, "%s/apd_dump_%05d", dumpdir, getpid());
-	if((APD_GLOBALS(dump_file) = php_fopen_wrapper(path, "a",  IGNORE_URL, &issock, &socketd, NULL TSRMLS_CC)) == NULL) {
+	if((APD_GLOBALS(dump_file) = fopen(path, "a")) == NULL) {
 		zend_error(E_ERROR, "%s() failed to open %s for tracing", get_active_function_name(TSRMLS_C), path);
 	}	
 	efree(path);
