@@ -260,6 +260,7 @@ struct CallStackEntry {
 	char *filename;			// location of call
 	int lineNum;			// location of call
 	struct timeval func_begin;  // time of function call
+    clock_t clock_begin;        // clock ticks for func call begin
 };
 
 typedef struct apd_stack_t CallStack;
@@ -369,7 +370,7 @@ static CallStackEntry* mkCallStackEntry(
 	entry->lineNum      = lineNum;
 	if(APD_GLOBALS(bitmask) & TIMING_TRACE || APD_GLOBALS(pproftrace)) {
 		gettimeofday(&entry->func_begin, NULL);
-	}
+	} 
 	else {
 		entry->func_begin.tv_sec = 0;
 		entry->func_begin.tv_usec = 0;
@@ -511,20 +512,19 @@ static void traceFunctionEntry(
         struct tms walltimes;
         clock_t clock;
         if(APD_GLOBALS(index) > 1) {
-            timevaldiff(&(entry->func_begin), &APD_GLOBALS(lasttime), &elapsed);
-            APD_GLOBALS(lasttime) = entry->func_begin;
+//            timevaldiff(&(entry->func_begin), &APD_GLOBALS(lasttime), &elapsed);
+ //           APD_GLOBALS(lasttime) = entry->func_begin;
         } else {
-            gettimeofday(&now, NULL);
-            timevaldiff(&now, &APD_GLOBALS(lasttime), &elapsed);
-            APD_GLOBALS(lasttime) = now;
+  //          gettimeofday(&now, NULL);
+   //         timevaldiff(&now, &APD_GLOBALS(lasttime), &elapsed);
+  //          APD_GLOBALS(lasttime) = now;
         }
         clock = times(&walltimes);
-        APD_GLOBALS(lasttime) = entry->func_begin;
-        apd_pprof_fprintf("@ %d %d %d %3d.%06d\n", 
+   //     APD_GLOBALS(lasttime) = entry->func_begin;
+        apd_pprof_fprintf("@ %d %d %d\n", 
             walltimes.tms_utime - APD_GLOBALS(lasttms).tms_utime, 
             walltimes.tms_stime - APD_GLOBALS(lasttms).tms_stime, 
-            clock - APD_GLOBALS(lastclock),
-            elapsed.tv_sec, elapsed.tv_usec);
+            clock - APD_GLOBALS(lastclock));
         APD_GLOBALS(lasttms) = walltimes;
         APD_GLOBALS(lastclock) = clock;
     }
@@ -668,35 +668,54 @@ static void traceFunctionExit()
 	{
 		apd_indent(&line, 2*print_indent);
 	}
-	if(APD_GLOBALS(bitmask) & TIMING_TRACE || APD_GLOBALS(pproftrace))
-	{
-    int curSize;
-    struct tms walltimes;
-    clock_t clock;
+    if( APD_GLOBALS(pproftrace)) 
+    {
+        struct tms walltimes;
+        clock_t clock;
 
-	gettimeofday(&now, NULL);
-    timevaldiff(&now, &APD_GLOBALS(req_begin), &elapsed);
-    timevaldiff(&now, &APD_GLOBALS(lasttime), &profelapsed);
-    APD_GLOBALS(lasttime) = now;
-    clock = times(&walltimes);
-    
-    if (APD_GLOBALS(index) > 1) {
-        APD_GLOBALS(lasttime) = entry->func_begin;
-        apd_pprof_fprintf("@ %d %d %d %d.%06d\n", 
-            walltimes.tms_utime - APD_GLOBALS(lasttms).tms_utime, 
-            walltimes.tms_stime - APD_GLOBALS(lasttms).tms_stime,
-            clock - APD_GLOBALS(lastclock),
-            profelapsed.tv_sec, profelapsed.tv_usec);
+        clock = times(&walltimes);
+
+        if (APD_GLOBALS(index) > 1) {
+            APD_GLOBALS(lasttime) = entry->func_begin;
+            apd_pprof_fprintf("@ %d %d %d\n",
+                walltimes.tms_utime - APD_GLOBALS(lasttms).tms_utime,
+                walltimes.tms_stime - APD_GLOBALS(lasttms).tms_stime,
+                clock - APD_GLOBALS(lastclock));
+        }
+        APD_GLOBALS(lasttms) = walltimes;
+        APD_GLOBALS(lastclock) = clock;
     }
-    APD_GLOBALS(lasttms) = walltimes;
-    APD_GLOBALS(lastclock) = clock;
-    tmp = apd_sprintf("(%3d.%06d): ", elapsed.tv_sec, elapsed.tv_usec);
-	curSize = strlen(tmp);
-	apd_strcat(&tmp, &curSize, line);
-	apd_efree(line);
-	line = tmp;
+	if(APD_GLOBALS(bitmask) & TIMING_TRACE)
+	{
+        int curSize;
+
+	    gettimeofday(&now, NULL);
+        timevaldiff(&now, &APD_GLOBALS(req_begin), &elapsed);
+        tmp = apd_sprintf("(%3d.%06d): ", elapsed.tv_sec, elapsed.tv_usec);
+	    curSize = strlen(tmp);
+	    apd_strcat(&tmp, &curSize, line);
+	    apd_efree(line);
+	    line = tmp;
   }
-  if(APD_GLOBALS(bitmask) & FUNCTION_TRACE || APD_GLOBALS(pproftrace))
+    if(APD_GLOBALS(pproftrace))
+    {
+        summary_t *summaryStats;
+        if ( zend_hash_find(APD_GLOBALS(summary), entry->functionName, 
+                                                  strlen(entry->functionName) + 1, 
+                                                  (void *) &summaryStats) == SUCCESS )
+        {
+            apd_pprof_fprintf("- %d\n", summaryStats->index);
+        } else {
+            summaryStats = (summary_t *) emalloc(sizeof(summary_t));
+            summaryStats->calls = 1;
+            summaryStats->index = ++APD_GLOBALS(index);
+            summaryStats->totalTime = 0;
+            zend_hash_add(APD_GLOBALS(summary), entry->functionName, strlen(entry->functionName) +
+ 1, summaryStats, sizeof(summary_t), NULL);
+            apd_pprof_fprintf("- %d\n", summaryStats->index);
+        }
+    }
+  if(APD_GLOBALS(bitmask) & FUNCTION_TRACE)
   {
   	char *tmp;
 	int curSize;
@@ -712,7 +731,6 @@ static void traceFunctionExit()
 		{
 			summaryStats->calls += 1;
 			summaryStats->totalTime += (diff.tv_sec * 100000 + diff.tv_usec);
-            apd_pprof_fprintf("- %d\n", summaryStats->index);
 		}
 		else {
 			summaryStats = (summary_t *) emalloc(sizeof(summary_t));
@@ -720,7 +738,6 @@ static void traceFunctionExit()
             summaryStats->index = ++APD_GLOBALS(index);
 			summaryStats->totalTime = (diff.tv_sec * 100000 + diff.tv_usec);
 			zend_hash_add(APD_GLOBALS(summary), entry->functionName, strlen(entry->functionName) + 1, summaryStats, sizeof(summary_t), NULL);
-            apd_pprof_fprintf("- %d\n", summaryStats->index);
 		}
 	}
     tmp = apd_sprintf("%s() at %s:%d returned.  Elapsed (%d.%06d)\n", 
