@@ -884,7 +884,7 @@ PHP_FUNCTION(apd_set_session_trace)
 	fprintf(APD_GLOBALS(dump_file), "Process Pid (%d)\n", getpid());
 	fprintf(APD_GLOBALS(dump_file), "Trace Begun at %s", ctime(&starttime));
 	fprintf(APD_GLOBALS(dump_file), "---------------------------------------------------------------------------\n");
-	fprintf(APD_GLOBALS(dump_file), "(  0.000000): apd_set_session_trace called at somewhere\n");
+	fprintf(APD_GLOBALS(dump_file), "(  0.000000): apd_set_session_trace called at %s:%d\n", zend_get_executed_filename(TSRMLS_C), zend_get_executed_lineno(TSRMLS_C));
 }	
 
 // ---------------------------------------------------------------------------
