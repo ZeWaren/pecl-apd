@@ -1,4 +1,4 @@
-#!/usr/bin/env php 
+#!/usr/bin/env php -dvariables_order="GPS" -dauto_prepend_file= -dauto_append_file=
 <?php
 require "Console/Getopt.php";
 error_reporting(0);
@@ -20,7 +20,17 @@ if(($DATA = fopen($dataFile, "r")) == FALSE) {
     exit(1);
 }
 
-parse_info('HEADER', $DATA, $cfg);
+while(!feof($DATA)) {
+    $count++;
+    $cfg = array();
+    parse_info('HEADER', $DATA, $cfg);
+    if(array_key_exists('hz', $cfg)) {
+        if($count == 1) {
+            print "File does not appear to be a pprof trace file\n";
+            exit;
+        }
+    }
+}
 
 $callstack = array();
 $calls = array();
@@ -36,8 +46,13 @@ $c_utimes = array();
 $rtimes = array();
 $stimes = array();
 $utimes = array();
+$rtotal = 0;
 $stotal = 0;
+$utotal = 0;
 $last_memory = 0;
+
+$symbol_hash = array();
+$symbol_type = array();
 
 while($line = fgets($DATA)) {
     $line = rtrim($line);
@@ -142,6 +157,9 @@ if(array_key_exists('S', $opt)) { $sort = 'by_c_stime'; }
 if(array_key_exists('u', $opt)) { $sort = 'by_utime'; }
 if(array_key_exists('U', $opt)) { $sort = 'by_c_utime'; }
 if(array_key_exists('Z', $opt)) { $sort = 'by_c_time'; }
+if( !count($symbol_hash)) {
+    continue;
+}
 
 printf("
 Trace for %s
