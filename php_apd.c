@@ -502,16 +502,13 @@ static void traceFunctionExit()
 		summary_t *summaryStats;
 		if ( zend_hash_find(APD_GLOBALS(summary), entry->functionName, strlen(entry->functionName) + 1, (void *) &summaryStats) == SUCCESS )
 		{
-			fprintf(APD_GLOBALS(dump_file), "DEBUG pre %s calls = %d totalTime =%d\n", entry->functionName,summaryStats->calls, summaryStats->totalTime);
 			summaryStats->calls += 1;
 			summaryStats->totalTime += (diff.tv_sec * 100000 + diff.tv_usec);
-			fprintf(APD_GLOBALS(dump_file), "DEBUG post %s calls = %d totalTime =%d\n", entry->functionName,summaryStats->calls, summaryStats->totalTime);
 		}
 		else {
 			summaryStats = (summary_t *) emalloc(sizeof(summary_t));
 			summaryStats->calls = 1;
 			summaryStats->totalTime = (diff.tv_sec * 100000 + diff.tv_usec);
-			fprintf(APD_GLOBALS(dump_file), "DEBUG %s calls = %d totalTime =%d\n", entry->functionName,summaryStats->calls, summaryStats->totalTime);
 			zend_hash_add(APD_GLOBALS(summary), entry->functionName, strlen(entry->functionName) + 1, summaryStats, sizeof(summary_t), NULL);
 		}
 	}
@@ -527,6 +524,77 @@ static void traceFunctionExit()
   }
 }
 
+// --------------------------------------------------------------------------
+// Error Tracing
+// --------------------------------------------------------------------------
+
+void (*old_zend_error_cb)(int type, const char *error_filename, const uint error_lineno, const char *format, va_list args);
+
+static void apd_error_cb(int type, const char *error_filename, const uint error_lineno, const char *format, va_list args)
+{
+  char buffer[1024];
+  char *error_type_str;
+  char *tmp;
+  char *line = NULL;
+    int curSize;
+
+  if(APD_GLOBALS(bitmask) & ERROR_TRACE) {
+    switch(type) {
+      case E_ERROR:
+      case E_CORE_ERROR:
+      case E_COMPILE_ERROR:
+      case E_USER_ERROR:
+        error_type_str = "Fatal Error";
+        break;
+      case E_WARNING:
+      case E_CORE_WARNING:
+      case E_COMPILE_WARNING:
+      case E_USER_WARNING:
+        error_type_str = "Warning";
+        break;
+      case E_PARSE:
+        error_type_str = "Parse error";
+        break;
+      case E_NOTICE:
+        error_type_str = "Warning";
+        break;
+      case E_USER_NOTICE:
+        error_type_str = "Notice";
+        break;
+      default:
+        error_type_str = "Unknown error";
+        break;
+    }
+    vsnprintf(buffer, sizeof(buffer) - 1, format, args);
+    line = apd_estrdup("");
+    apd_indent(&line, 2*print_indent);
+    if(APD_GLOBALS(bitmask) & TIMING_TRACE)
+    {
+      struct timeval now;
+      struct timeval elapsed;
+
+      gettimeofday(&now, NULL);
+      timevaldiff(&now, &APD_GLOBALS(req_begin), &elapsed);
+      tmp = apd_sprintf("(%3d.%06d): ", elapsed.tv_sec, elapsed.tv_usec);
+      curSize = strlen(tmp);
+      apd_strcat(&tmp, &curSize, line);
+      apd_efree(line);
+      line = tmp;
+    }
+    tmp = apd_sprintf("%s at %s:%s() line %d error_string \"%s\"\n",
+            error_type_str, error_filename, 
+            EG(active_op_array)->function_name?EG(active_op_array)->function_name:"main",
+			error_lineno, buffer);
+    curSize = strlen(line) ;
+    apd_strcat(&line, &curSize, tmp);
+    apd_efree(tmp);
+    if(APD_GLOBALS(bitmask) && APD_GLOBALS(dump_file)) {
+      fprintf(APD_GLOBALS(dump_file), "%s", line);
+      apd_efree(line);
+    }
+  }
+  old_zend_error_cb(type, error_filename, error_lineno, format, args);
+}
 
 // ---------------------------------------------------------------------------
 // Module Entry
@@ -598,6 +666,8 @@ PHP_MINIT_FUNCTION(apd)
 	old_compile_file = zend_compile_file;
 	zend_compile_file = apd_compile_file;
 #endif
+	old_zend_error_cb = zend_error_cb;
+	zend_error_cb = apd_error_cb;
 	return SUCCESS;
 }
 
