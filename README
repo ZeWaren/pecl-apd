@@ -7,8 +7,8 @@ PHP-APD
 Buid/Installation process:
 ----------------------------------------------------------------------------- *
 
-    Make sure you have install the CGI version of PHP and it is available in
-    yuor current path aloing with the phpize script.
+    Make sure you have installed the CGI version of PHP and it is available
+    in yuor current path along with the phpize script.
 
     Change into the source directory (either created from the downloaded TAR
     archive or from checking out CVS) an run the following commands:
@@ -22,7 +22,7 @@ Buid/Installation process:
         <PHP INSTALL PATH>/lib/php/<ZEND VERSION><-OPTIONAL_DEBUG>/
 
     directory. It isn't mandatory to have it there, in fact you can install
-    it anywhere you care
+    it anywhere you care.
 
 
     In your INI file, add the following lines:
@@ -42,8 +42,8 @@ Buid/Installation process:
 
     apd.dumpdir:
 
-        This can eitehr be an absolute path or also a relative path. Relative
-        means always relative to your PHP executable.
+        This can either be an absolute path or a relative path. Relative
+        means always relative to your where from you run your executeable.
 
 
     *** NOTE ******************************************************************
@@ -59,15 +59,13 @@ Buid/Installation process:
 Win32ism
 ----------------------------------------------------------------------------- *
 
-    To build APD under linux you need a working PHP compilation
+    To build APD under windows you need a working PHP compilation
     environment as described on http://php.net/ (basically, it requires
     you to have MSVC, win32build.zip and bison/flex and some know how
     about how to get it to work). Also make sure that adp.dsp has DOS
-    line ending! If it has unix line endings, MSVC will complain about it.
+    line endings! If it has unix line endings, MSVC will complain about it.
 
-    The timing of the tracer is currently not as accurat as the one under
-    Linux (will change). Also, you can use normal Windows paths values for
-    your PHP.INI file:
+    You can use normal Windows path values for your PHP.INI settings:
 
         zend_extension_debug_ts = c:\phpdev\php_apd.dll
         apc.dumpdir = c:\phpdev\traces
