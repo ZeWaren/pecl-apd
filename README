@@ -169,15 +169,15 @@ looks like:
 & 1 apd_set_session_trace
 + 1
 - 1
-@ 0 0 0   0.000121
+@ 0 0 0
 & 2 hellosleepyhead
 + 2
-@ 0 0 0   0.000047
+@ 0 0 0
 & 3 sleep
 + 3
-@ 0 0 101 1.007088
+@ 0 0 101
 - 3
-@ 0 0 0 1.007287
+@ 0 0 0
 - 2
 
 
@@ -185,7 +185,7 @@ looks like:
 being entered. - shows a function being exited. @ shows a time elapsed in 
 the form  
 
-@ process_user_clock_t process_system_clock_t process_real_clock_t wall_seconds
+@ process_user_clock_t process_system_clock_t process_real_clock_t
 
 
 
