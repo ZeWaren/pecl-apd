@@ -447,8 +447,12 @@ static void traceFunctionExit()
   if(APD_GLOBALS(bitmask) & FUNCTION_TRACE) {
   	char *tmp;
 	int curSize;
-
-	timevaldiff(&now, &(entry->func_begin), &diff);
+	if(entry->func_begin.tv_sec) {
+		timevaldiff(&now, &(entry->func_begin), &diff);
+	}
+	else {
+		timevaldiff(&now, &APD_GLOBALS(req_begin), &diff);
+	}	
     tmp = apd_sprintf("%s() returned.  Elapsed (%d.%06d)\n", 
 				entry->functionName, diff.tv_sec, diff.tv_usec);
 	curSize = strlen(line) ;
@@ -525,6 +529,7 @@ PHP_MINIT_FUNCTION(apd)
 PHP_RINIT_FUNCTION(apd)
 {
 	gettimeofday(&APD_GLOBALS(req_begin), NULL);
+	gettimeofday(&APD_GLOBALS(last_call), NULL);
 	APD_GLOBALS(last_mem_header) = AG(head)->pLast;
 	APD_GLOBALS(last_pmem_header) = AG(phead)->pLast;
 	APD_GLOBALS(dump_file) = stderr;
