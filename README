@@ -68,7 +68,7 @@ Win32ism
     You can use normal Windows path values for your PHP.INI settings:
 
         zend_extension_debug_ts = c:\phpdev\php_apd.dll
-        apc.dumpdir = c:\phpdev\traces
+        apd.dumpdir = c:\phpdev\traces
 
 
 How to use PHP-APD in your scripts
