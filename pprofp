@@ -77,11 +77,13 @@ while($line = fgets($DATA)) {
         continue;
     }
     if ($token == '-') {
-        list  ($index, $notes) = preg_split("/ /", $data, 2);
+        list  ($index, $notes, $memory) = preg_split("/ /", $data, 3);
         if(array_key_exists('i',$opt) && $symbol_type[$index] == 1)
         {
             continue;
         }
+        $mem[$index] += ($memory - $last_memory);
+        $last_memory = $memory;
         $indent_cur--;
         $utimes[$index] += $t_utime;
         $utotal += $t_utime;
@@ -110,6 +112,7 @@ while($line = fgets($DATA)) {
 parse_info('FOOTER', $DATA, $cfg);
 $sort = 'by_time';
 if(array_key_exists('l', $opt)) { $sort = 'by_calls'; }
+if(array_key_exists('m', $opt)) { $sort = 'by_mem'; }
 if(array_key_exists('a', $opt)) { $sort = 'by_name'; }
 if(array_key_exists('v', $opt)) { $sort = 'by_avgcpu'; }
 if(array_key_exists('r', $opt)) { $sort = 'by_rtime'; }
@@ -128,7 +131,7 @@ Total User Time    = %4.2f
 ", $cfg['caller'], $rtotal/$cfg['hz'], $stotal/$cfg['hz'], $utotal/$cfg['hz']);
 print "\n
          Real         User        System             secs/    cumm
-%Time (excl/cumm)  (excl/cumm)  (excl/cumm) Calls    call    s/call Name
+%Time (excl/cumm)  (excl/cumm)  (excl/cumm) Calls    call    s/call Memory Usage Name
 ------------------------------------------------------------------------\n";
 $l = 0;
 //foreach (usort(array_keys($symbol_hash), $sort) as $j) {
@@ -220,8 +223,9 @@ foreach (array_keys($symbol_hash) as $j) {
                 }
 	}
         $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
+        $mem_usage = $mem[$j];
         $name = $symbol_hash[$j];
-        printf("%3.01f %2.02f %2.02f  %2.02f %2.02f  %2.02f %2.02f  %4d  %2.04f   %2.02f %s\n", $pcnt, $rsecs, $c_rsecs, $usecs, $c_usecs, $ssecs, $c_ssecs, $ncalls, $percall, $cpercall, $name);
+        printf("%3.01f %2.02f %2.02f  %2.02f %2.02f  %2.02f %2.02f  %4d  %2.04f   %2.02f %12d %s\n", $pcnt, $rsecs, $c_rsecs, $usecs, $c_usecs, $ssecs, $c_ssecs, $ncalls, $percall, $cpercall, $mem_usage, $name);
 //        printf("%2.02f %2.02f %2.02f %2.02f %2.02f %2.02f %2.02f   %4d  %2.04f   %2.02f %s\n", $pcnt, $rsecs, $c_rsecs, $usecs, $c_usecs, $ssecs, $c_ssecs, $ncalls, $percall, $cpercall, $name);
     }
 }
@@ -233,6 +237,7 @@ pprofp <flags> <trace file>
     Sort options
     -a          Sort by alphabetic names of subroutines.
     -l          Sort by number of calls to subroutines
+    -m          Sort by memory used in a function call.
     -r          Sort by real time spent in subroutines.
     -R          Sort by real time spent in subroutines (inclusive of child calls).
     -s          Sort by system time spent in subroutines.
@@ -300,5 +305,6 @@ function by_stime($a,$b) { global $stimes; return num_cmp($stimes[$b], $stimes[$
 function by_c_stime($a,$b) { global $c_stimes; return num_cmp($c_stimes[$b], $c_stimes[$a]); }
 function by_utime($a,$b) { global $utimes; return num_cmp($utimes[$b], $utimes[$a]); }
 function by_c_utime($a,$b) { global $c_utimes; return num_cmp($c_utimes[$b], $c_utimes[$a]); }
+function by_mem($a, $b) { global $mem; return num_cmp($mem[$b], $mem[$a]); }
     
 ?>
