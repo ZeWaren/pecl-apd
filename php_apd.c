@@ -970,6 +970,7 @@ PHP_RSHUTDOWN_FUNCTION(apd)
             endtp.tms_utime,
             endtp.tms_stime,
             endclock - APD_GLOBALS(firstclock));
+        apd_pprof_fprintf("END_FOOTER\n");
         fclose(APD_GLOBALS(pprof_file));
     }
     if (APD_GLOBALS(dump_sock_id)) {
