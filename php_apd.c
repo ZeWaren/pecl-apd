@@ -146,11 +146,11 @@ void apd_interactive () {
         char *tmpbuf=NULL,*tmp=NULL;
         char *compiled_string_description;
         zval retval;
-        TSRMLS_DC
+        TSRMLS_FETCH();
 
         int length = 1024; /* the maximum command length that can be accepted! */
         int recv_len;
-
+    
         if (APD_GLOBALS(interactive_mode) == 0) return;
         if (APD_GLOBALS(ignore_interactive) == 1) return;
         /* only available to sockets */
@@ -1775,15 +1775,13 @@ ZEND_DLEXPORT void fcallEnd(zend_op_array *op_array)
 
 ZEND_DLEXPORT void onStatement(zend_op_array *op_array)
 {
+        TSRMLS_FETCH();
         if (APD_GLOBALS(ignore_interactive) == 1) return;
         if(APD_GLOBALS(bitmask) & STATEMENT_TRACE) {
-
-                TSRMLS_FETCH();
-                apd_dump_fprintf("statement: %s:%d\n",                   
-                        zend_get_executed_filename(TSRMLS_C),
-                        zend_get_executed_lineno(TSRMLS_C)
-                   );
-                apd_interactive();
+            apd_dump_fprintf("statement: %s:%d\n",                   
+                zend_get_executed_filename(TSRMLS_C),
+                zend_get_executed_lineno(TSRMLS_C));
+            apd_interactive();
         } 
 }
 
