@@ -24,6 +24,8 @@
 #include "config.h"
 #endif
 
+#include "php_config.h"
+
 #include "php.h"
 #include "php_ini.h"
 #include "php_globals.h"

@@ -36,7 +36,7 @@
 /* apd_emalloc: malloc that dies on failure */
 void* apd_emalloc(size_t n)
 {
-	void* p = malloc(n);
+	void* p = emalloc(n);
 	if (p == NULL) {
 		apd_eprint("apd_emalloc: malloc failed to allocate %u bytes:", n);
 	}
@@ -46,7 +46,7 @@ void* apd_emalloc(size_t n)
 /* apd_erealloc: realloc that dies on failure */
 void* apd_erealloc(void* p, size_t n)
 {
-	p = realloc(p, n);
+	p = erealloc(p, n);
 	if (p == NULL) {
 		apd_eprint("apd_erealloc: realloc failed to allocate %u bytes:", n);
 	}
@@ -59,7 +59,7 @@ void apd_efree(void* p)
 	if (p == NULL) {
 		apd_eprint("apd_efree: attempt to free null pointer");
 	}
-	free(p);
+	efree(p);
 }
 
 /* apd_estrdup: strdup that dies on failure */
@@ -72,7 +72,7 @@ char* apd_estrdup(const char* s)
 		return NULL;
 	}
 	len = strlen(s);
-	dup = (char*) malloc(len+1);
+	dup = (char*) emalloc(len+1);
 	if (dup == NULL) {
 		apd_eprint("apd_estrdup: malloc failed to allocate %u bytes:", len+1);
 	}
@@ -89,7 +89,7 @@ char* apd_copystr(const char* s, int len)
 	if (s == NULL) {
 		return NULL;
 	}
-	dup = (char*) malloc(len+1);
+	dup = (char*) emalloc(len+1);
 	if (dup == NULL) {
 		apd_eprint("apd_estrdup: malloc failed to allocate %u bytes:", len+1);
 	}
@@ -141,7 +141,7 @@ void apd_strcat(char** dst, int* curSize, const char* src)
 
 	if (*dst == 0) {
 		*curSize = srcLen+1;
-		*dst = (char*) malloc(*curSize);
+		*dst = (char*) emalloc(*curSize);
 		strcpy(*dst, src);
 		return;
 	}
@@ -156,7 +156,7 @@ void apd_strcat(char** dst, int* curSize, const char* src)
 				*curSize *= 2;
 			}
 		}
-		*dst = realloc(*dst, *curSize);
+		*dst = erealloc(*dst, *curSize);
 	}
 
 	strcat(*dst, src);
@@ -169,7 +169,7 @@ void apd_strncat(char** dst, int* curSize, const char* src, int srcLen)
 
     if (*dst == 0) {
         *curSize = srcLen+1;
-        *dst = (char*) malloc(*curSize);
+        *dst = (char*) emalloc(*curSize);
         strncpy(*dst, src, srcLen);
         return;
     }
@@ -180,7 +180,7 @@ void apd_strncat(char** dst, int* curSize, const char* src, int srcLen)
 		while (dstLen + srcLen + 1 > *curSize) {
 	        *curSize *= 2;
 		}
-        *dst = realloc(*dst, *curSize);
+        *dst = erealloc(*dst, *curSize);
     }
 
     strncat(*dst, src, dstLen + srcLen);

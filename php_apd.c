@@ -112,7 +112,7 @@ void apd_dump_fprintf(const char* fmt, ...)
 	send(APD_GLOBALS(dump_sock_id), newStr, strlen (newStr) + 1, 0);
 #endif
 	}
-	apd_efree(newStr);
+	efree(newStr);
 }
 
 void apd_pprof_fprintf(const char* fmt, ...)
@@ -140,7 +140,7 @@ void apd_pprof_fprintf(const char* fmt, ...)
 #endif
     }
 */
-	apd_efree(newStr);
+	efree(newStr);
 }
 
 
@@ -169,20 +169,20 @@ void apd_interactive () {
 	
 	/* loop until \n is recieved */
 	
-	tmpbuf = apd_emalloc(length + 1);
+	tmpbuf = emalloc(length + 1);
 	
 	recv_len = recv(APD_GLOBALS(dump_sock_id),   tmpbuf , length, 0) ;
 	if (recv_len == -1) {
 		php_error(E_WARNING, "apd debugger failed to recieve data: turning off debugger");
-		apd_efree(tmpbuf);
+		efree(tmpbuf);
 		APD_GLOBALS(interactive_mode) = 0;
 		return;
 	}
-	tmpbuf = apd_erealloc(tmpbuf, recv_len + 1);
+	tmpbuf = erealloc(tmpbuf, recv_len + 1);
 	tmpbuf[ recv_len ] = '\0' ;
 	
 	if (strcmp(tmpbuf,"\n")==0) {
-		apd_efree(tmpbuf);
+		efree(tmpbuf);
 		return;
 	}
 	
@@ -202,7 +202,7 @@ void apd_interactive () {
 	}
 	
 	APD_GLOBALS(ignore_interactive) =0;
-	apd_efree(tmpbuf);
+	efree(tmpbuf);
 	
 	/* call myself again! = recursive! */
 	apd_interactive();
@@ -243,17 +243,17 @@ typedef struct apd_stack_t CallStack;
 
 static char* boolToString(int v)
 {
-	return v ? apd_estrdup("true") : apd_estrdup("false");
+	return v ? estrdup("true") : estrdup("false");
 }
 
 CallStackEntry *mkCallStackEntry(char *func, char *filename, int linenum, int type)
 {
     CallStackEntry* entry;
-    entry = (CallStackEntry*) apd_emalloc(sizeof(CallStackEntry));
-    entry->functionName = apd_estrdup(func);
+    entry = (CallStackEntry*) emalloc(sizeof(CallStackEntry));
+    entry->functionName = estrdup(func);
     entry->numArgs = 0;
     entry->args    = NULL;
-    entry->filename = apd_estrdup(filename);
+    entry->filename = estrdup(filename);
     entry->lineNum = linenum;
     return entry;
 }
@@ -263,17 +263,17 @@ static CallArg* mkCallArgVal(zend_op* curOp)
 	CallArg* arg;
 
 	assert(curOp->opcode == ZEND_SEND_VAL);
-	arg = (CallArg*) apd_emalloc(sizeof(CallArg));
+	arg = (CallArg*) emalloc(sizeof(CallArg));
 	arg->type = CALL_ARG_LITERAL;
 
 	if (curOp->op1.op_type != IS_CONST) {
-		arg->strVal = apd_estrdup("??");
+		arg->strVal = estrdup("??");
 		return arg;
 	}
 
 	switch (curOp->op1.u.constant.type) {
 	  case IS_NULL:
-		arg->strVal = apd_estrdup("(null constant)");
+		arg->strVal = estrdup("(null constant)");
 		break;
 	  case IS_LONG:
 		arg->strVal = apd_sprintf("%ld", curOp->op1.u.constant.value.lval);
@@ -286,14 +286,14 @@ static CallArg* mkCallArgVal(zend_op* curOp)
 		break;
 	  case IS_BOOL:
 		arg->strVal = curOp->op1.u.constant.value.lval
-			? apd_estrdup("true")
-			: apd_estrdup("false");
+			? estrdup("true")
+			: estrdup("false");
 		break;
 	  case IS_CONSTANT:
-		arg->strVal = apd_estrdup(curOp->op1.u.constant.value.str.val);
+		arg->strVal = estrdup(curOp->op1.u.constant.value.str.val);
 		break;
 	  default:
-		arg->strVal = apd_estrdup("???");
+		arg->strVal = estrdup("???");
 		break;
 	}
 
@@ -307,7 +307,7 @@ static CallArg* mkCallArgVar(zend_op* curOp, CallArgType type)
 	int curSize;
 
 	assert(curOp->opcode == ZEND_SEND_VAR || curOp->opcode == ZEND_SEND_REF);
-	arg = (CallArg*) apd_emalloc(sizeof(CallArg));
+	arg = (CallArg*) emalloc(sizeof(CallArg));
 	arg->type = type;
 	arg->strVal = 0;
 	curSize = 0;
@@ -344,14 +344,14 @@ static void freeCallStackEntry(CallStackEntry* entry)
 	int i;
 
 	for (i = 0; i < entry->numArgs; i++) {
-		apd_efree(entry->args[i].strVal);
+		efree(entry->args[i].strVal);
 	}
         if(entry->args) {
-	    apd_efree(entry->args);
+	    efree(entry->args);
         }
-	apd_efree(entry->functionName);
-	apd_efree(entry->filename);
-	apd_efree(entry);
+	efree(entry->functionName);
+	efree(entry->filename);
+	efree(entry);
 }
 
 static void initializeTracer()
@@ -379,44 +379,44 @@ char *apd_get_active_function_name(zend_execute_data *execd, zend_op_array *op_a
     if(execd) {
         if(execd->function_state.function->common.function_name) {
             if(execd->ce) {
-                funcname = apd_estrdup(execd->ce->name);
+                funcname = estrdup(execd->ce->name);
                 apd_strcat(&funcname, &curSize, "->");
                 apd_strcat(&funcname, &curSize, execd->function_state.function->common.function_name);
             }
             else if(execd->object.ptr) {
-                funcname = apd_estrdup(execd->object.ptr->value.obj.ce->name);
+                funcname = estrdup(execd->object.ptr->value.obj.ce->name);
                 apd_strcat(&funcname, &curSize, "->");
                 apd_strcat(&funcname, &curSize, execd->function_state.function->common.function_name);
             }
             else {
-                funcname = apd_estrdup(execd->function_state.function->common.function_name);
+                funcname = estrdup(execd->function_state.function->common.function_name);
             }
         } 
         else {
             switch (execd->opline->op2.u.constant.value.lval) {
                 case ZEND_EVAL:
-                    funcname = apd_estrdup("eval");
+                    funcname = estrdup("eval");
                     break;
                 case ZEND_INCLUDE:
-                    funcname = apd_estrdup("include");
+                    funcname = estrdup("include");
                     break;
                 case ZEND_REQUIRE:
-                    funcname = apd_estrdup("require");
+                    funcname = estrdup("require");
                     break;
                 case ZEND_INCLUDE_ONCE:
-                    funcname = apd_estrdup("include_once");
+                    funcname = estrdup("include_once");
                     break;
                 case ZEND_REQUIRE_ONCE:
-                    funcname = apd_estrdup("require_once");
+                    funcname = estrdup("require_once");
                     break;
                 default:
-                    funcname = apd_estrdup("???");
+                    funcname = estrdup("???");
                     break;
             }
         }
     } 
     else {
-        funcname = apd_estrdup("???");
+        funcname = estrdup("???");
     }
     return funcname;
 }
@@ -567,7 +567,7 @@ static void apd_error_cb(int type, const char *error_filename, const uint error_
         break;
     }
     vsnprintf(buffer, sizeof(buffer) - 1, format, args);
-    line = apd_estrdup("");
+    line = estrdup("");
     apd_indent(&line, 2*print_indent);
     if(APD_GLOBALS(bitmask) & TIMING_TRACE)
     {
@@ -579,7 +579,7 @@ static void apd_error_cb(int type, const char *error_filename, const uint error_
       tmp = apd_sprintf("(%3d.%06d): ", elapsed.tv_sec, elapsed.tv_usec);
       curSize = strlen(tmp);
       apd_strcat(&tmp, &curSize, line);
-      apd_efree(line);
+      efree(line);
       line = tmp;
     }
     tmp = apd_sprintf("%s at %s:%s() line %d error_string \"%s\"\n",
@@ -588,10 +588,10 @@ static void apd_error_cb(int type, const char *error_filename, const uint error_
 			error_lineno, buffer);
     curSize = strlen(line) ;
     apd_strcat(&line, &curSize, tmp);
-    apd_efree(tmp);
+    efree(tmp);
     if(APD_GLOBALS(bitmask)) {
       apd_dump_fprintf( "%s", line);
-      apd_efree(line);
+      efree(line);
     }
   }
   old_zend_error_cb(type, error_filename, error_lineno, format, args);
@@ -705,7 +705,7 @@ ZEND_API void apd_execute(zend_op_array *op_array TSRMLS_DC)
 		zend_get_executed_lineno(TSRMLS_C));
 	old_execute(op_array TSRMLS_CC);
 	traceFunctionExit(fname);
-	apd_efree(fname);
+	efree(fname);
         apd_interactive();
 }
 
@@ -724,7 +724,7 @@ ZEND_API void apd_execute_internal(zend_execute_data *execute_data_ptr, int retu
 		zend_get_executed_lineno(TSRMLS_C));
         ((zend_internal_function *) execute_data_ptr->function_state.function)->handler(execute_data_ptr->opline->extended_value, execute_data_ptr->Ts[execute_data_ptr->opline->result.u.var].var.ptr, execute_data_ptr->object.ptr, return_value_used TSRMLS_CC);
 	traceFunctionExit(fname);
-	apd_efree(fname);
+	efree(fname);
         apd_interactive();
 }
 #endif
