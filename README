@@ -19,7 +19,7 @@ Buid/Installation process:
         make install
 
 
-    This automatically should install the 'php_apd' zend module into your
+    This automatically should install the 'apd' zend module into your
 
         <PHP INSTALL PATH>/lib/php/<ZEND VERSION><-OPTIONAL_DEBUG>/
 
@@ -29,7 +29,7 @@ Buid/Installation process:
 
     In your INI file, add the following lines:
 
-        zend_extension = /absolute/path/to/php_apd.so
+        zend_extension = /absolute/path/to/apd.so
         apd.dumpdir = /absolute/path/to/trace/directory
 
     Depending on your PHP build, the zend_extension directive can be one
@@ -40,7 +40,7 @@ Buid/Installation process:
         zend_extension_debug        (non ZTS,     debug build)
         zend_extension_debug_ts     (    ZTS,     debug build)
 
-        zend_extension_debug = /absolute/path/to/php_apd.so
+        zend_extension_debug = /absolute/path/to/apd.so
 
     apd.dumpdir:
 
@@ -69,7 +69,7 @@ Win32ism
 
     You can use normal Windows path values for your PHP.INI settings:
 
-        zend_extension_debug_ts = c:\phpdev\php_apd.dll
+        zend_extension_debug_ts = c:\phpdev\apd.dll
         apd.dumpdir = c:\phpdev\traces
 
 
