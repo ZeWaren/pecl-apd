@@ -523,8 +523,10 @@ static void traceFunctionEntry(
 		tmp = apd_sprintf("(%3d.%06d): ", 
 			elapsed.tv_sec, elapsed.tv_usec);
 		curSize = strlen(tmp);
-		apd_strcat(&tmp, &curSize, line);
-		apd_efree(line);
+                if(line) {
+		    apd_strcat(&tmp, &curSize, line);
+		    apd_efree(line);
+                }
 		line = tmp;
         }
 	if(APD_GLOBALS(bitmask) & FUNCTION_TRACE) {
@@ -684,8 +686,10 @@ static void traceFunctionExit()
         timevaldiff(&now, &APD_GLOBALS(req_begin), &elapsed);
         tmp = apd_sprintf("(%3d.%06d): ", elapsed.tv_sec, elapsed.tv_usec);
 	    curSize = strlen(tmp);
-	    apd_strcat(&tmp, &curSize, line);
-	    apd_efree(line);
+            if(line) {
+	        apd_strcat(&tmp, &curSize, line);
+	        apd_efree(line);
+            }
 	    line = tmp;
   }
     if(APD_GLOBALS(pproftrace))
