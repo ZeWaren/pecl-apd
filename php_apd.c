@@ -109,7 +109,7 @@ typedef enum { CALL_ARG_VAR, CALL_ARG_REF, CALL_ARG_LITERAL } CallArgType;
 
 typedef struct summary_t {
 	int	calls;
-	double totalTime;
+	int totalTime;
 } summary_t;
 
 typedef struct CallArg CallArg;
@@ -528,7 +528,7 @@ static void traceFunctionExit()
 			summaryStats->calls = 1;
 			summaryStats->totalTime = (diff.tv_sec * 100000 + diff.tv_usec);
 			fprintf(APD_GLOBALS(dump_file), "DEBUG %s calls = %d totalTime =%d\n", entry->functionName,summaryStats->calls, summaryStats->totalTime);
-			zend_hash_add(APD_GLOBALS(summary), entry->functionName, strlen(entry->functionName) + 1, summaryStats, sizeof(void *), NULL);
+			zend_hash_add(APD_GLOBALS(summary), entry->functionName, strlen(entry->functionName) + 1, summaryStats, sizeof(summary_t), NULL);
 		}
 	}
     tmp = apd_sprintf("%s() returned.  Elapsed (%d.%06d)\n", 
