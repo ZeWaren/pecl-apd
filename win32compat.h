@@ -19,11 +19,16 @@
 
 
 /* Include stuff ************************************************************ */
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #include <winsock.h>
 #include <time.h>
 
 /* Struct stuff ************************************************************* */
 typedef long clock_t;
+#ifndef CLOCKS_PER_SEC
+#define CLOCKS_PER_SEC 1000
+#endif
 
 struct tms
 {

@@ -1222,6 +1222,8 @@ void apd_pprof_header(TSRMLS_D) {
 	apd_pprof_fprintf("#Pprof [APD] v0.9\n");
 #ifdef _SC_CLK_TCK
 	apd_pprof_fprintf("hz=%d\n", sysconf(_SC_CLK_TCK));
+#elif defined(CLOCKS_PER_SEC) /* 1000 on windows */
+	apd_pprof_fprintf("hz=%d\n", CLOCKS_PER_SEC);
 #endif
 	apd_pprof_fprintf("caller=%s\n",zend_get_executed_filename(TSRMLS_C));
 	apd_pprof_fprintf("\nEND_HEADER\n");
@@ -1296,7 +1298,7 @@ PHP_FUNCTION(apd_set_session_trace_socket)
     int address_len;
     
     int sock_domain;
-    int sock_port;
+    unsigned short sock_port;
     int bitmask;
     int connect_result;
    
