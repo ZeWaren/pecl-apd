@@ -145,7 +145,7 @@ typedef struct {
 
 void apd_summary_output_header(void);
 void apd_summary_output_file_reference(int, const char *);
-void apd_summary_output_elapsed_time(int, int, int);
+void apd_summary_output_elapsed_time(int, int, int, int, int);
 void apd_summary_output_declare_function(int, const char *, int);
 void apd_summary_output_enter_function(int, int, int);
 void apd_summary_output_exit_function(int, int);
@@ -154,7 +154,7 @@ void apd_summary_output_footer(void);
 
 typedef void (*apd_output_header_func_t)(void);
 typedef void (*apd_output_file_reference_func_t)(int, const char *);
-typedef void (*apd_output_elapsed_time_func_t)(int, int, int);
+typedef void (*apd_output_elapsed_time_func_t)(int, int, int, int, int);
 typedef void (*apd_output_declare_function_func_t)(int, const char *, int);
 typedef void (*apd_output_function_enter_func_t)(int, int, int); 
 typedef void (*apd_output_function_exit_func_t)(int, int);
@@ -171,6 +171,7 @@ typedef struct {
 } apd_output_handlers;
 
 ZEND_BEGIN_MODULE_GLOBALS(apd)
+	int counter;
 	void* stack;
 	HashTable* function_summary;
 	HashTable* file_summary;
@@ -178,13 +179,13 @@ ZEND_BEGIN_MODULE_GLOBALS(apd)
 	FILE* dump_file; /* FILE for dumping session traces to */
 	FILE* pprof_file; /* File for profiling output */
 	int dump_sock_id; /* Socket for dumping data to */
-    struct timeval first_clock;
-    struct timeval last_clock;
+	struct timeval first_clock;
+	struct timeval last_clock;
 	struct rusage first_ru;
 	struct rusage last_ru;
 	int function_index;                /* current index of functions for pprof tracing */
 	int file_index;                /* current index of functions for pprof tracing */
-	long bitmask;              /* Bitmask for determining what gets logged */
+	int current_file_index;
 	long pproftrace;           /* Flag for whether we are doing profiling */
 	void* last_mem_header;		/* tail of persistent zend_mem_header list */
 	void* last_pmem_header;		/* tail of persistent zend_mem_header list */
@@ -193,10 +194,12 @@ ZEND_BEGIN_MODULE_GLOBALS(apd)
 	int allocated_memory;
 	apd_output_handlers output;
 	apd_summary_t summary;
+	int statement_tracing;
 ZEND_END_MODULE_GLOBALS(apd)
 
+PHPAPI ZEND_EXTERN_MODULE_GLOBALS(apd)
+
 /* Declare global structure. */
-ZEND_DECLARE_MODULE_GLOBALS(apd);
 
 #ifdef ZTS
 #define APD_GLOBALS(v) TSRMG(apd_globals_id, zend_apd_globals *, v)

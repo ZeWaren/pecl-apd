@@ -1,23 +1,23 @@
 /* 
    +----------------------------------------------------------------------+
-   | APD Profiler & Debugger                                              |
+   | APD Profiler & Debugger											  |
    +----------------------------------------------------------------------+
-   | Copyright (c) 2001-2003 Community Connect Inc.                       |
+   | Copyright (c) 2001-2003 Community Connect Inc.					   |
    +----------------------------------------------------------------------+
-   | This source file is subject to version 2.02 of the PHP license,      |
-   | that is bundled with this package in the file LICENSE, and is        |
-   | available at through the world-wide-web at                           |
-   | http://www.php.net/license/2_02.txt.                                 |
+   | This source file is subject to version 2.02 of the PHP license,	  |
+   | that is bundled with this package in the file LICENSE, and is		|
+   | available at through the world-wide-web at						   |
+   | http://www.php.net/license/2_02.txt.								 |
    | If you did not receive a copy of the PHP license and are unable to   |
-   | obtain it through the world-wide-web, please send a note to          |
-   | license@php.net so we can mail you a copy immediately.               |
+   | obtain it through the world-wide-web, please send a note to		  |
+   | license@php.net so we can mail you a copy immediately.			   |
    +----------------------------------------------------------------------+
-   | Authors: Daniel Cowgill <dcowgill@communityconnect.com>              |
-   |          George Schlossnagle <george@lethargy.org>                   |
-   |          Sterling Hughes <sterling@php.net>                          |
+   | Authors: Daniel Cowgill <dcowgill@communityconnect.com>			  |
+   |		  George Schlossnagle <george@lethargy.org>				   |
+   |		  Sterling Hughes <sterling@php.net>						  |
    +----------------------------------------------------------------------+
 */
-    
+	
 #include "php_apd.h"
 #ifdef PHP_WIN32
 #include "win32compat.h"
@@ -31,11 +31,12 @@
 #endif
 
 #include "apd_lib.h"
-#include "opcode.h"
 #include "zend_API.h"
 #include "zend_hash.h"
 #include "zend_alloc.h"
 #include "zend_operators.h"
+#include "zend_globals.h"
+#include "zend_compile.h"
 #include <assert.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -61,6 +62,9 @@ ZEND_DLEXPORT void apd_execute_internal(zend_execute_data *execute_data_ptr, int
 #endif
 ZEND_DLEXPORT void (*old_execute)(zend_op_array *op_array TSRMLS_DC);
 
+ZEND_DLEXPORT void onStatement(zend_op_array *op_array TSRMLS_DC);
+ZEND_DECLARE_MODULE_GLOBALS(apd);
+
 /* This comes from php install tree. */
 #include "ext/standard/info.h"
 
@@ -71,14 +75,15 @@ function_entry apd_functions[] = {
 	PHP_FE(rename_function, NULL)
 	PHP_FE(apd_set_pprof_trace, NULL)
 	PHP_FE(apd_set_browser_trace, NULL)
-    PHP_FE(apd_set_session_trace_socket, NULL)
-    PHP_FE(apd_breakpoint, NULL)
-    PHP_FE(apd_continue, NULL)
-    PHP_FE(apd_echo, NULL)
+	PHP_FE(apd_set_session_trace_socket, NULL)
+	PHP_FE(apd_breakpoint, NULL)
+	PHP_FE(apd_continue, NULL)
+	PHP_FE(apd_echo, NULL)
 	{NULL, NULL, NULL}
 };
 
 void apd_pprof_fprintf(const char* fmt, ...);
+static void log_time(TSRMLS_D);
 
 long diff_times(struct timeval a, struct timeval b)
 {
@@ -108,9 +113,9 @@ apd_pprof_output_file_reference(int id, const char *filename)
 }
 
 static void 
-apd_pprof_output_elapsed_time(int usert, int systemt, int realt)
+apd_pprof_output_elapsed_time(int filenum, int linenum, int usert, int systemt, int realt)
 {
-	apd_pprof_fprintf("@ %ld %ld %ld\n", usert, systemt, realt);
+	apd_pprof_fprintf("@ %d %d %ld %ld %ld\n", filenum, linenum, usert, systemt, realt);
 }
 
 static void
@@ -151,8 +156,8 @@ apd_pprof_output_footer(void)
 
 	apd_pprof_fprintf("END_TRACE\n");
 	apd_pprof_fprintf("total_user=%ld\ntotal_sys=%ld\ntotal_wall=%ld\n",
-                      diff_times(end_ru.ru_utime, APD_GLOBALS(first_ru).ru_utime),
-                      diff_times(end_ru.ru_stime, APD_GLOBALS(first_ru).ru_stime),
+					  diff_times(end_ru.ru_utime, APD_GLOBALS(first_ru).ru_utime),
+					  diff_times(end_ru.ru_stime, APD_GLOBALS(first_ru).ru_stime),
 					  diff_times(end_clock, APD_GLOBALS(first_clock)));
 	apd_pprof_fprintf("END_FOOTER\n");
 }
@@ -165,7 +170,7 @@ void apd_dump_fprintf(const char* fmt, ...)
 {
 	va_list args;
 	char* newStr;
-	TSRMLS_FETCH();    
+	TSRMLS_FETCH();	
 	va_start(args, fmt);
 	newStr = apd_sprintf_real(fmt, args);
 	va_end(args);
@@ -286,7 +291,7 @@ char *apd_get_active_function_name(zend_op_array *op_array TSRMLS_DC)
 {
 	char *funcname = NULL;
 	int curSize = 0;
-	zend_execute_data *execd;
+	zend_execute_data *execd = NULL;
 	char *tmpfname;
 	char *classname;
 	int classnameLen;
@@ -339,7 +344,7 @@ char *apd_get_active_function_name(zend_op_array *op_array TSRMLS_DC)
 		}
 	} 
 	else {
-		funcname = estrdup("???");
+		funcname = estrdup("main");
 	}
 	return funcname;
 }
@@ -361,6 +366,7 @@ static void trace_function_entry(HashTable *func_table, const char *fname, int t
 		APD_GLOBALS(output).file_reference(*filenum, filename);
 		zend_hash_add(APD_GLOBALS(file_summary), (char *) filename, strlen(filename) + 1, filenum, sizeof(int), NULL);
 	}
+	APD_GLOBALS(current_file_index) = *filenum;
 
 	if (zend_hash_find(APD_GLOBALS(function_summary), (char *) fname, strlen(fname)+1, (void *) &function_index) == SUCCESS) {
 		APD_GLOBALS(output).enter_function(*function_index, *filenum, linenum);
@@ -390,21 +396,7 @@ static void trace_function_exit(char *fname)
 #if MEMORY_LIMIT
 	allocated = AG(memory_limit);
 #endif
-			
-	gettimeofday(&clock, NULL);
-	getrusage(RUSAGE_SELF, &wall_ru);
-
-	if (APD_GLOBALS(function_index) > 1) {
-		utime = diff_times(wall_ru.ru_utime, APD_GLOBALS(last_ru).ru_utime);
-		stime = diff_times(wall_ru.ru_stime, APD_GLOBALS(last_ru).ru_stime);
-		rtime = diff_times(clock, APD_GLOBALS(last_clock));
-		if(utime || stime || rtime) {
-			APD_GLOBALS(output).elapsed_time(utime, stime, rtime);
-		}
-	}
-	
-	APD_GLOBALS(last_ru) = wall_ru;
-	APD_GLOBALS(last_clock) = clock;
+	log_time(TSRMLS_C);	
 	if (zend_hash_find(APD_GLOBALS(function_summary), fname, strlen(fname) + 1, (void *) &function_index) == SUCCESS) {
 		APD_GLOBALS(output).exit_function(*function_index, allocated);
 	} else {
@@ -415,15 +407,33 @@ static void trace_function_exit(char *fname)
 	}
 }
 
+static void log_time(TSRMLS_D)
+{
+	struct timeval clock;
+	struct rusage wall_ru;
+
+	gettimeofday(&clock, NULL);
+	getrusage(RUSAGE_SELF, &wall_ru);
+
+	if (APD_GLOBALS(function_index) > 1) {
+		long utime, stime, rtime;
+		utime = diff_times(wall_ru.ru_utime, APD_GLOBALS(last_ru).ru_utime);
+		stime = diff_times(wall_ru.ru_stime, APD_GLOBALS(last_ru).ru_stime);
+		rtime = diff_times(clock, APD_GLOBALS(last_clock));
+		if(utime || stime || rtime) {
+			APD_GLOBALS(output).elapsed_time(APD_GLOBALS(current_file_index), zend_get_executed_lineno(TSRMLS_C), utime, stime, rtime);
+		}
+	}
+	
+	APD_GLOBALS(last_ru) = wall_ru;
+	APD_GLOBALS(last_clock) = clock;
+}
+
 /* --------------------------------------------------------------------------
-   Error Tracing
-   ---------------------------------------------------------------------------
    Module Entry
    --------------------------------------------------------------------------- */
 zend_module_entry apd_module_entry = {
-#if ZEND_MODULE_API_NO >= 20010901
 	STANDARD_MODULE_HEADER,
-#endif
 	"APD",
 	apd_functions,
 	PHP_MINIT(apd),
@@ -431,14 +441,9 @@ zend_module_entry apd_module_entry = {
 	PHP_RINIT(apd),
 	PHP_RSHUTDOWN(apd),
 	PHP_MINFO(apd),
-	NULL,
-	NULL,
-#if ZEND_MODULE_API_NO >= 20010901
-	NO_VERSION_YET,    /* extension version number (string) */
-#endif
-	STANDARD_MODULE_PROPERTIES_EX
+	NO_VERSION_YET,	/* extension version number (string) */
+	STANDARD_MODULE_PROPERTIES
 };
-ZEND_DECLARE_MODULE_GLOBALS(apd);
 
 #if COMPILE_DL_APD
 ZEND_GET_MODULE(apd)
@@ -462,6 +467,7 @@ static PHP_INI_MH(set_dumpdir)
 
 PHP_INI_BEGIN()
 	 PHP_INI_ENTRY("apd.dumpdir", NULL,   PHP_INI_ALL, set_dumpdir)
+	 STD_PHP_INI_ENTRY("apd.statement_tracing", "0",   PHP_INI_ALL, OnUpdateLong, statement_tracing, zend_apd_globals, apd_globals)
 PHP_INI_END()
 
 
@@ -471,7 +477,7 @@ PHP_INI_END()
 
 static void php_apd_init_globals(zend_apd_globals *apd_globals) 
 {
-	memset(apd_globals, 0, sizeof(zend_apd_globals));	
+	memset(apd_globals, 0, sizeof(zend_apd_globals));   
 	
 	apd_globals->function_summary = (HashTable *) malloc(sizeof(HashTable));
 	apd_globals->file_summary = (HashTable *) malloc(sizeof(HashTable));
@@ -491,28 +497,9 @@ PHP_MINIT_FUNCTION(apd)
 {
 	ZEND_INIT_MODULE_GLOBALS(apd, php_apd_init_globals, php_apd_free_globals);
 	REGISTER_INI_ENTRIES();
-	REGISTER_LONG_CONSTANT("APD_AF_UNIX",   AF_UNIX,  CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("APD_AF_INET",    AF_INET,  CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("APD_FUNCTION_TRACE", FUNCTION_TRACE, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("APD_ARGS_TRACE", ARGS_TRACE, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("APD_ASSIGNMENT_TRACE", ASSIGNMENT_TRACE, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("APD_STATEMENT_TRACE", STATEMENT_TRACE, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("APD_MEMORY_TRACE", MEMORY_TRACE, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("APD_TIMING_TRACE", TIMING_TRACE, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("APD_SUMMARY_TRACE", SUMMARY_TRACE, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("APD_ERROR_TRACE", ERROR_TRACE, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("APD_PROF_TRACE", PROF_TRACE, CONST_CS | CONST_PERSISTENT);
-#ifdef TRACE_ZEND_COMPILE /* we can trace the time to compile things. */
-	/*	gettimeofday(&APD_GLOBALS(last_call), NULL); */
-	old_compile_file = zend_compile_file;
-	zend_compile_file = apd_compile_file;
-#endif
 	old_execute = zend_execute;
 	zend_execute = apd_execute;
-	/* if the zend_execute_internal pointer exists, use it to trace 'built-ins*/
-#if ZEND_EXTENSION_API_NO>=20020731
 	zend_execute_internal = apd_execute_internal;
-#endif
 	return SUCCESS;
 }
 
@@ -524,14 +511,13 @@ ZEND_API void apd_execute(zend_op_array *op_array TSRMLS_DC)
 	void **p;
 	int argCount;
 	zval **object_ptr_ptr;
-
-	fname = apd_get_active_function_name(op_array TSRMLS_CC);
-	trace_function_entry(EG(function_table), fname, ZEND_USER_FUNCTION,
+  	fname = apd_get_active_function_name(op_array TSRMLS_CC);
+   	trace_function_entry(EG(function_table), fname, ZEND_USER_FUNCTION,
 						zend_get_executed_filename(TSRMLS_C),
 						zend_get_executed_lineno(TSRMLS_C));
-	old_execute(op_array TSRMLS_CC);
-	trace_function_exit(fname);
-	efree(fname);
+   	old_execute(op_array TSRMLS_CC);
+   	trace_function_exit(fname);
+   	efree(fname);
 	apd_interactive();
 }
 
@@ -542,9 +528,11 @@ ZEND_API void apd_execute_internal(zend_execute_data *execute_data_ptr, int retu
 	void **p;
 	int argCount;
 	zval **object_ptr_ptr;
+	zend_execute_data *execd;
 
-	fname = apd_get_active_function_name(EG(current_execute_data)->op_array TSRMLS_CC);
-	trace_function_entry(EG(function_table), fname, ZEND_INTERNAL_FUNCTION,
+	execd = executor_globals.current_execute_data;
+   	fname = apd_get_active_function_name(execd->op_array TSRMLS_CC);
+   	trace_function_entry(EG(function_table), fname, ZEND_INTERNAL_FUNCTION,
 						zend_get_executed_filename(TSRMLS_C),
 						zend_get_executed_lineno(TSRMLS_C));
 	execute_internal(execute_data_ptr, return_value_used TSRMLS_CC);
@@ -567,7 +555,6 @@ PHP_RINIT_FUNCTION(apd)
 
 	APD_GLOBALS(dump_file) = stderr;
 	APD_GLOBALS(dump_sock_id) = 0;
-	APD_GLOBALS(bitmask) = 0;
 	APD_GLOBALS(interactive_mode) = 0;
 	APD_GLOBALS(ignore_interactive) = 0;  
 	gettimeofday(&APD_GLOBALS(last_clock), NULL);
@@ -587,7 +574,7 @@ PHP_RINIT_FUNCTION(apd)
 
 PHP_RSHUTDOWN_FUNCTION(apd)
 {
-	APD_GLOBALS(output).footer();
+//	APD_GLOBALS(output).footer();
 	if (APD_GLOBALS(pprof_file)) {
 		fclose(APD_GLOBALS(pprof_file));
 	}
@@ -600,7 +587,7 @@ PHP_RSHUTDOWN_FUNCTION(apd)
 
 	zend_hash_clean(APD_GLOBALS(function_summary));
 	zend_hash_clean(APD_GLOBALS(file_summary));
-
+	APD_GLOBALS(counter)++;
 	return SUCCESS;
 }
 
@@ -667,7 +654,7 @@ PHP_FUNCTION(override_function)
 				RETURN_FALSE;
 			}
 		RETURN_TRUE;
-	}	
+	}   
 	else {
 		RETURN_FALSE;
 	}
@@ -727,7 +714,7 @@ PHP_FUNCTION(rename_function)
 	RETURN_TRUE;
 }
 
-void apd_pprof_header(TSRMLS_D) {
+void apd_pprof_header(char *ent_fname TSRMLS_DC) {
 	char *fname = "main";
 	char *filename;
 	int linenum, *filenum, *fnum;
@@ -748,6 +735,13 @@ void apd_pprof_header(TSRMLS_D) {
 	APD_GLOBALS(output).file_reference(*filenum, filename);
 	APD_GLOBALS(output).declare_function(*fnum, fname, ZEND_USER_FUNCTION);
 	APD_GLOBALS(output).enter_function(*fnum, *filenum,  linenum);
+
+	fnum = (int *) emalloc(sizeof(int));
+	*fnum = APD_GLOBALS(function_index)++;
+	zend_hash_add(APD_GLOBALS(function_summary), ent_fname, strlen(ent_fname)+1, fnum, sizeof(int), NULL);
+
+	APD_GLOBALS(output).declare_function(*fnum, ent_fname, ZEND_USER_FUNCTION);
+	APD_GLOBALS(output).enter_function(*fnum, *filenum,  linenum);
 }
 
 PHP_FUNCTION(apd_set_browser_trace)
@@ -766,7 +760,7 @@ PHP_FUNCTION(apd_set_browser_trace)
 	APD_GLOBALS(output).enter_function = apd_summary_output_enter_function;
 	APD_GLOBALS(output).exit_function = apd_summary_output_exit_function;
 
-	apd_pprof_header(TSRMLS_C);
+	apd_pprof_header("apd_set_broswer_trace" TSRMLS_CC);
 }
 
 PHP_FUNCTION(apd_set_pprof_trace)
@@ -775,7 +769,7 @@ PHP_FUNCTION(apd_set_pprof_trace)
 	int socketd = 0;
 	int path_len;
 	char *dumpdir;
-	char *path;
+	char path[MAXPATHLEN];
 	zval  **z_dumpdir;
 
 	if(ZEND_NUM_ARGS() > 1 )
@@ -805,15 +799,12 @@ PHP_FUNCTION(apd_set_pprof_trace)
 		dumpdir = Z_STRVAL_PP(z_dumpdir);
 	}
 	
-	path_len = strlen(dumpdir) + 1 + strlen("pprof.") + 5;
-	path = (char *) emalloc((path_len + 1)* sizeof(char) );
-	snprintf(path, path_len + 1, "%s/pprof.%05d", dumpdir, getpid());
+	snprintf(path, MAXPATHLEN, "%s/pprof.%05d.%d", dumpdir, getpid(), APD_GLOBALS(counter));
 	if((APD_GLOBALS(pprof_file) = fopen(path, "a")) == NULL) {
 		zend_error(E_ERROR, "%s() failed to open %s for tracing", get_active_function_name(TSRMLS_C), path);
 	}  
-	efree(path);
 
-	apd_pprof_header(TSRMLS_C);
+	apd_pprof_header("apd_set_pprof_trace" TSRMLS_CC);
 }  
 
 
@@ -828,18 +819,16 @@ PHP_FUNCTION(apd_set_session_trace_socket)
  
 	int sock_domain;
 	int sock_port;
-	int bitmask;
 	int connect_result;
    
 	struct sockaddr_in si;
 	struct sockaddr_un su;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, 
-							  "slll", &address,&address_len, &sock_domain, &sock_port,&bitmask) == FAILURE) 
+							  "slll", &address,&address_len, &sock_domain, &sock_port) == FAILURE) 
 		{
 			return;
 		}
-	APD_GLOBALS(bitmask) = bitmask;
 	APD_GLOBALS(dump_file)=NULL;
   
 	/* now for the socket stuff */
@@ -906,12 +895,10 @@ PHP_FUNCTION(apd_set_session_trace_socket)
 
 PHP_FUNCTION(apd_breakpoint) 
 {
-	int bitmask; 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, 
-							  "l", &bitmask) == FAILURE) {
+							  "l") == FAILURE) {
 		return;
 	} 
-	APD_GLOBALS(bitmask) = bitmask;
 	APD_GLOBALS(interactive_mode) = 1;
 	RETURN_TRUE;
 }
@@ -922,12 +909,6 @@ PHP_FUNCTION(apd_breakpoint)
 
 PHP_FUNCTION(apd_continue) 
 {
-	int bitmask; 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, 
-							  "l", &bitmask) == FAILURE) {
-		return;
-	} 
-	APD_GLOBALS(bitmask) = bitmask;
 	APD_GLOBALS(interactive_mode) = 0;
 	RETURN_TRUE;
 }
@@ -946,7 +927,7 @@ PHP_FUNCTION(apd_echo)
 		return;
 	}
 	if (str_len > 0) {
-		/*     php_error(E_WARNING, "apd echoing %s", str); */
+		/*	 php_error(E_WARNING, "apd echoing %s", str); */
 		if ( APD_GLOBALS(dump_sock_id) > 0)  {
 #ifndef PHP_WIN32
 			/* Unix bit */
@@ -959,7 +940,7 @@ PHP_FUNCTION(apd_echo)
 #endif
 		}
 		apd_dump_fprintf("%s\n",str);
-		/*     efree(str); */
+		/*	 efree(str); */
 	}
 	RETURN_TRUE;
 
@@ -975,23 +956,16 @@ PHP_FUNCTION(apd_echo)
 ZEND_DLEXPORT void onStatement(zend_op_array *op_array)
 {
 	TSRMLS_FETCH();
-	if (APD_GLOBALS(ignore_interactive) == 1) return;
-	if(APD_GLOBALS(bitmask) & STATEMENT_TRACE) {
-		apd_dump_fprintf("statement: %s:%d\n",       
-						 zend_get_executed_filename(TSRMLS_C),
-						 zend_get_executed_lineno(TSRMLS_C));
-		apd_interactive();
-	} 
+	if(APD_GLOBALS(pproftrace) && APD_GLOBALS(statement_tracing)) {
+		log_time(TSRMLS_C);
+	}
 }
-
-/* ---------------------------------------------------------------------------
-   Zend Extension Support
- --------------------------------------------------------------------------- */
 
 int apd_zend_startup(zend_extension *extension)
 {
 	TSRMLS_FETCH();
 	CG(extended_info) = 1;  /* XXX: this is ridiculous */
+fprintf(stderr, "%s:%d\n", __FILE__, __LINE__);
 	return zend_startup_module(&apd_module_entry);
 }
 
@@ -1013,21 +987,17 @@ ZEND_DLEXPORT zend_extension zend_extension_entry = {
 	"",
 	apd_zend_startup,
 	apd_zend_shutdown,
-	NULL,		// activate_func_t
-	NULL,		// deactivate_func_t
-	NULL,		// message_handler_func_t
-	NULL,		// op_array_handler_func_t
-	NULL, // statement_handler_func_t
-	NULL,	// fcall_begin_handler_func_t
-	NULL,	// fcall_end_handler_func_t
-	NULL,		// op_array_ctor_func_t
-	NULL,		// op_array_dtor_func_t
-#ifdef COMPAT_ZEND_EXTENSION_PROPERTIES
-	NULL,		// api_no_check
+	NULL,	   // activate_func_t
+	NULL,	   // deactivate_func_t
+	NULL,	   // message_handler_func_t
+	NULL,	   // op_array_handler_func_t
+	onStatement, // statement_handler_func_t
+	NULL,   // fcall_begin_handler_func_t
+	NULL,   // fcall_end_handler_func_t
+	NULL,	   // op_array_ctor_func_t
+	NULL,	   // op_array_dtor_func_t
+	NULL,	   // api_no_check
 	COMPAT_ZEND_EXTENSION_PROPERTIES
-#else
-	STANDARD_ZEND_EXTENSION_PROPERTIES
-#endif
 };
 
 /**

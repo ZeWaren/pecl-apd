@@ -20,6 +20,6 @@ if test "$PHP_APD" != "no"; then
   AC_DEFINE(HAVE_APD, 1, [ ])
 
   dnl Write more examples of tests here...
-  PHP_EXTENSION(apd, $ext_shared)
+  PHP_NEW_EXTENSION(apd, php_apd.c apd_lib.c apd_array.c apd_summary.c, $ext_shared)
 fi
 

@@ -31,6 +31,7 @@ Buid/Installation process:
 
         zend_extension = /absolute/path/to/apd.so
         apd.dumpdir = /absolute/path/to/trace/directory
+	apd.statement_trace = 0
 
     Depending on your PHP build, the zend_extension directive can be one
     of the following:
@@ -47,6 +48,10 @@ Buid/Installation process:
         This can either be an absolute path or a relative path. Relative
         means always relative to your where from you run your executeable.
 
+    apd.statement_trace:
+        
+        Whether or not to do per-line tracings.  There is a performance
+        impact to enabling this.
 
     *** NOTE ******************************************************************
     *
@@ -89,7 +94,7 @@ How to use PHP-APD in your scripts with pprof (new style)
 
         apd_set_pprof_trace();
 
-    This will generate a pprof.<pid> file in your apd.dumpdir.  The format
+    This will generate a pprof.<pid>.<ext> file in your apd.dumpdir.  The format
     of this file is as follows:
 
 ! 1 simple.php
@@ -113,7 +118,7 @@ How to use PHP-APD in your scripts with pprof (new style)
 + shows a function being entered and the file index and line number it was called on. 
 - shows a function being exited. 
 @ shows a time elapsed in the form  
-    @ process_user_clock_t process_system_clock_t process_real_clock_t
+    @ file_id line_id process_user_clock_t process_system_clock_t process_real_clock_t
 
 The syntax of the file is largely for informational purposes, it's not designed
 for human consumption.  To extract human-readable information from the trace, use
@@ -134,6 +139,7 @@ pprofp <flags> <trace file>
 
     Display options
     -c          Display Real time elapsed alongside call tree.
+    -m		Display file locations as well.
     -i          Suppress reporting for php builtin functions
     -O <cnt>    Specifies maximum number of subroutines to display. (default 15)
     -t          Display compressed call tree.
@@ -141,11 +147,11 @@ pprofp <flags> <trace file>
 
 Thus, to get basic output on the trace, we would do 
 
-pprofp -u /tmp/pprof.<pid>
+pprofp -u /tmp/pprof.<pid>.<ext>
 
 and we get something like:
 
-10:33:29(george@ballista)[~/pear/PECL/apd]> pprofp -u /tmp/pprof.23424
+10:33:29(george@ballista)[~/pear/PECL/apd]> pprofp -u /tmp/pprof.23424.0
 
 Trace for /data/storage/mirrors/www.php.net/index.php
 Total Elapsed Time =    0.09
@@ -181,7 +187,7 @@ Total User Time    =    0.06
 This sorts output based on the usertime spent in subroutines, and ommits a call tree.  If
 we added a -t
 
-10:38:30(george@ballista)[~/pear/PECL/apd]> pprofp -u -t /tmp/pprof.23424
+10:38:30(george@ballista)[~/pear/PECL/apd]> pprofp -u -t /tmp/pprof.23424.0
 
 ...
 
@@ -189,95 +195,26 @@ We would also get a call graph for the function.  Which is often very long.
 
 
 
-
-How to use PHP-APD in your scripts (old style)
+KCachegrind compatible output
 ----------------------------------------------------------------------------- *
+APD can convert it's pprof data files to a format readable by
+kcachegrind.  kcachegrind is an amazing graphical profiler, available
+here: http://kcachegrind.sourceforge.net/.
 
-    In your PHP script, add the following line:
+To perform the conversion, run
 
-        apd_set_session_trace(N);
+pprof2calltree -f /path/to/pprofp.<pid>.<ext>
 
-    where N is an integer which is formed by masking together the following
-    values:
+This will generate a file in your local directory called
 
-        FUNCTION_TRACE      1
-        ARGS_TRACE          2
-        ASSIGNMENT_TRACE    4
-        STATEMENT_TRACE     8
-        MEMORY_TRACE        16
-        TIMING_TRACE        32
-        SUMMARY_TRACE       64
+cachegrind.out.pprof.<pid>.<ext>
 
-    I would seriously not recommend using MEMORY_TRACE.  It is very slow and
-    does not appear to be accurate (great, huh?)  also ASSIGNMENT_TRACE is not
-    implemented. So, to turn on all functional traces (TIMING, FUNCTIONS, ARGS
-    SUMMARY (like strace -c)) use:
+You can then load this file with kcachegrind as follows:
 
-        apd_set_session_trace(99);
-
-
-    Now run your script.
-
-
-    The dump output will be writting to:
-
-        <apd.dumpdir>/apd_dump_<pid>
-
-    The output itself will look something like:
-
-16:37:51(george@wasabi)[~/src/apd]> cat /tmp/apd_dump_31994 
-
-
-APD - Advanced PHP Debugger Trace File
----------------------------------------------------------------------------
-Process Pid (31994)
-Trace Begun at Fri Aug 10 16:37:45 2001
----------------------------------------------------------------------------
-(  0.000000): apd_set_session_trace called at somewhere
-(  0.001482): apd_set_session_trace() returned.  Elapsed (997475865.364909)
-(  0.001563): getcwd() /opt/apache/htdocs/a.php:4
-(  0.001628): getcwd() returned.  Elapsed (0.000065)
-(  0.001819): require() /opt/apache/htdocs/a.php:6
-              ++ argv[0] $(??) = /tmp/a.php
-(  0.002231):   getcwd() /tmp/a.php:3
-(  0.002290):   getcwd() returned.  Elapsed (0.000059)
-(  0.002375):   include_once() /tmp/a.php:4
-                ++ argv[0] $(??) = /tmp/aa.php
-(  0.003276):   include_once() returned.  Elapsed (0.000901)
-(  0.003334): require() returned.  Elapsed (0.001515)
-(  0.003381): require_once() /opt/apache/htdocs/a.php:7
-              ++ argv[0] $(??) = /tmp/aa.php
-(  0.003515): require_once() returned.  Elapsed (0.000134)
-(  0.003564): include() /opt/apache/htdocs/a.php:8
-              ++ argv[0] $(??) = /tmp/b.php
-(  0.003792): include() returned.  Elapsed (0.000228)
-(  0.018341): RSHUTDOWN called - end of trace
----------------------------------------------------------------------------
-Process Pid (31994)
-Trace Ended at Fri Aug 10 16:37:45 2001
----------------------------------------------------------------------------
-
+kcachegrind cachegrind.out.pprof.<pid>.<ext>
 
 Implemented Debugging Functions
 ----------------------------------------------------------------------------- *
-
-    array apd_callstack()
-        Returns the current call stack as an array (very cool).
-
-    apd_cluck([string warning[,string line delimiter])
-        Behaves like perl's Carp::cluck. Throw a warning and a callstack.
-        The default line delimiter is "<BR />\n".
-
-    apd_croak([string error[, string line delimiter]])
-        Behaves like perl's Carp::croak. Throw an error, a callstack and then
-        exit.  The default line delimiter is "<BR />\n".
-
-    array apd_dump_regular_resources()
-        Return all current regular resources as an array.
-
-    array apd_dump_persistent_resources()
-        Return all persistent resources as an array.
-
     override_function(string func_name, string func_args, string func_code):
         Syntax similar to create_function(). Overrides built-in functions
         (replaces them in the symbol table).
