@@ -62,7 +62,7 @@ ZEND_DLEXPORT void apd_execute_internal(zend_execute_data *execute_data_ptr, int
 #endif
 ZEND_DLEXPORT void (*old_execute)(zend_op_array *op_array TSRMLS_DC);
 
-ZEND_DLEXPORT void onStatement(zend_op_array *op_array TSRMLS_DC);
+ZEND_DLEXPORT void onStatement(zend_op_array *op_array);
 ZEND_DECLARE_MODULE_GLOBALS(apd);
 
 /* This comes from php install tree. */
@@ -955,7 +955,6 @@ PHP_FUNCTION(apd_echo)
 
 ZEND_DLEXPORT void onStatement(zend_op_array *op_array)
 {
-	TSRMLS_FETCH();
 	if(APD_GLOBALS(pproftrace) && APD_GLOBALS(statement_tracing)) {
 		log_time(TSRMLS_C);
 	}
