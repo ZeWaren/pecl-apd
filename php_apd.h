@@ -15,7 +15,10 @@
 #ifndef PHP_APD_H
 #define PHP_APD_H
 
+#ifndef PHP_WIN32
 #include "config.h"
+#endif
+
 #include "php.h"
 #include "php_ini.h"
 #include "php_globals.h"
@@ -26,8 +29,13 @@
 #include "zend_compile.h"
 #include "zend_extensions.h"
 
+#ifdef PHP_WIN32
+#define EXPORT __declspec(dllexport)
+#else
 #include <sys/time.h>
 #include <unistd.h>
+#define EXPORT
+#endif
 
 extern zend_module_entry apd_module_entry;
 #define apd_module_ptr &apd_module_entry
@@ -40,9 +48,11 @@ extern zend_module_entry apd_module_entry;
 #define STATEMENT_TRACE 8
 #define MEMORY_TRACE 16
 #define TIMING_TRACE 32
+#define SUMMARY_TRACE 64
 
 ZEND_BEGIN_MODULE_GLOBALS(apd)
 	void* stack;
+	HashTable* summary;
 	char* dumpdir; /* directory for dumping seesion traces to */
 	FILE* dump_file; /* FILE for dumping session traces to */
 	struct timeval req_begin;  /* Time the request began */
@@ -52,7 +62,11 @@ ZEND_BEGIN_MODULE_GLOBALS(apd)
 	int allocated_memory;
 ZEND_END_MODULE_GLOBALS(apd)
 
+#ifdef ZTS
+#define APD_GLOBALS(v) TSRMG(apd_globals_id, zend_apd_globals *, v)
+#else
 #define APD_GLOBALS(v) (apd_globals.v)
+#endif
 
 #define phpext_apd_ptr apd_module_ptr
 

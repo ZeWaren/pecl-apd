@@ -18,19 +18,26 @@
 #include "apd_stack.h"
 #include "zend_API.h"
 #include "zend_hash.h"
+#include "zend_alloc.h"
 #include <assert.h>
 #include <stdarg.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+#ifdef PHP_WIN32
+#include "win32/time.h"
+#include <process.h>
+#else
 #include <sys/time.h>
 #include <unistd.h>
+#endif
 
 // ---------------------------------------------------------------------------
 // Tracng calls to zend_compile_file
 // ---------------------------------------------------------------------------
 #undef TRACE_ZEND_COMPILE /* define to trace all calls to zend_compile_file */
-static ZEND_API zend_op_array* apd_compile_file(zend_file_handle*, int CLS_DC);
-static ZEND_API zend_op_array* (*old_compile_file)(zend_file_handle*, int CLS_DC);
+EXPORT zend_op_array* apd_compile_file(zend_file_handle* TSRMLS_DC);
+EXPORT zend_op_array* (*old_compile_file)(zend_file_handle* TSRMLS_DC);
 
 // ---------------------------------------------------------------------------
 // Required Declarations
@@ -68,9 +75,9 @@ function_entry apd_functions[] = {
 
 // Declare global structure.
 int print_indent;
-zend_apd_globals apd_globals;
+ZEND_DECLARE_MODULE_GLOBALS(apd);
 
-static ZEND_API zend_op_array* apd_compile_file(zend_file_handle* zfh, int type CLS_DC)
+EXPORT zend_op_array* apd_compile_file(zend_file_handle* zfh TSRMLS_DC)
 {
 	struct timeval begin;
 	struct timeval end;
@@ -82,7 +89,7 @@ static ZEND_API zend_op_array* apd_compile_file(zend_file_handle* zfh, int type 
 		timevaldiff(&begin, &APD_GLOBALS(req_begin), &elapsed);
 		fprintf(APD_GLOBALS(dump_file), "(%3d.%06d): Entered zend_compile file.\n", elapsed.tv_sec, elapsed.tv_usec);
 	}
-	ret_op_array = old_compile_file(zfh, type CLS_DC);
+	ret_op_array = old_compile_file(zfh TSRMLS_CC);
 	if(APD_GLOBALS(bitmask) & TIMING_TRACE) {
 		struct timeval elapsed;
 		struct timeval diff;
@@ -99,6 +106,11 @@ static ZEND_API zend_op_array* apd_compile_file(zend_file_handle* zfh, int type 
 // ---------------------------------------------------------------------------
 
 typedef enum { CALL_ARG_VAR, CALL_ARG_REF, CALL_ARG_LITERAL } CallArgType;
+
+typedef struct summary_t {
+	int	calls;
+	double totalTime;
+} summary_t;
 
 typedef struct CallArg CallArg;
 struct CallArg {
@@ -214,6 +226,7 @@ static CallStackEntry* mkCallStackEntry(
 {
 	CallStackEntry* entry;
 	zend_function *z_func;
+	TSRMLS_FETCH();
 
 	entry = (CallStackEntry*) apd_emalloc(sizeof(CallStackEntry));
 	entry->functionName = apd_estrdup(functionName);
@@ -317,6 +330,7 @@ static void freeCallStackEntry(CallStackEntry* entry)
 static void initializeTracer()
 {
 	CallStack* stack;
+	TSRMLS_FETCH();
 	
 	stack = apd_stack_create();
 	APD_GLOBALS(stack) = (void*) stack;
@@ -324,7 +338,10 @@ static void initializeTracer()
 
 static void shutdownTracer()
 {
-	CallStack* stack = (CallStack*) APD_GLOBALS(stack);
+	CallStack *stack;
+	TSRMLS_FETCH();
+
+	stack = (CallStack*) APD_GLOBALS(stack);
 	apd_stack_destroy(stack);
 }
 
@@ -341,6 +358,7 @@ static void traceFunctionEntry(
 	struct timeval elapsed;
 	int i = 0;
 	char *line;
+	TSRMLS_FETCH();
 
 	line = apd_estrdup("");
 
@@ -455,14 +473,16 @@ static void traceFunctionEntry(
 
 static void traceFunctionExit()
 {
-	CallStack* stack = (CallStack*) APD_GLOBALS(stack);
+	CallStack* stack;
 	CallStackEntry* entry;
-	
 	char* line = NULL;
 	char* tmp;
 	struct timeval now;
 	struct timeval elapsed;
 	struct timeval diff;
+	TSRMLS_FETCH();
+
+	stack = (CallStack*) APD_GLOBALS(stack);
  
  	line = apd_estrdup("");
 	if(print_indent) {	
@@ -493,7 +513,24 @@ static void traceFunctionExit()
 	}
 	else {
 		timevaldiff(&now, &APD_GLOBALS(req_begin), &diff);
-	}	
+	}
+	if(APD_GLOBALS(bitmask) & SUMMARY_TRACE) {
+		summary_t *summaryStats;
+		if ( zend_hash_find(APD_GLOBALS(summary), entry->functionName, strlen(entry->functionName) + 1, (void *) &summaryStats) == SUCCESS )
+		{
+			fprintf(APD_GLOBALS(dump_file), "DEBUG pre %s calls = %d totalTime =%d\n", entry->functionName,summaryStats->calls, summaryStats->totalTime);
+			summaryStats->calls += 1;
+			summaryStats->totalTime += (diff.tv_sec * 100000 + diff.tv_usec);
+			fprintf(APD_GLOBALS(dump_file), "DEBUG post %s calls = %d totalTime =%d\n", entry->functionName,summaryStats->calls, summaryStats->totalTime);
+		}
+		else {
+			summaryStats = (summary_t *) emalloc(sizeof(summary_t));
+			summaryStats->calls = 1;
+			summaryStats->totalTime = (diff.tv_sec * 100000 + diff.tv_usec);
+			fprintf(APD_GLOBALS(dump_file), "DEBUG %s calls = %d totalTime =%d\n", entry->functionName,summaryStats->calls, summaryStats->totalTime);
+			zend_hash_add(APD_GLOBALS(summary), entry->functionName, strlen(entry->functionName) + 1, summaryStats, sizeof(void *), NULL);
+		}
+	}
     tmp = apd_sprintf("%s() returned.  Elapsed (%d.%06d)\n", 
 				entry->functionName, diff.tv_sec, diff.tv_usec);
 	curSize = strlen(line) ;
@@ -589,6 +626,8 @@ PHP_RINIT_FUNCTION(apd)
 //	APD_GLOBALS(last_pmem_header) = AG(phead)->pLast;
 	APD_GLOBALS(dump_file) = stderr;
 	APD_GLOBALS(bitmask) = 0;
+	APD_GLOBALS(summary) = (HashTable*) emalloc(sizeof(HashTable));
+	zend_hash_init(APD_GLOBALS(summary), 0, NULL, NULL, 0);
 	initializeTracer();
 	return SUCCESS;
 }
@@ -608,12 +647,25 @@ PHP_RSHUTDOWN_FUNCTION(apd)
 		fprintf(APD_GLOBALS(dump_file), "Process Pid (%d)\n", getpid());
 		fprintf(APD_GLOBALS(dump_file), "Trace Ended at %s", ctime(&starttime));
 		fprintf(APD_GLOBALS(dump_file), "---------------------------------------------------------------------------\n");
-
+		if(APD_GLOBALS(bitmask) & SUMMARY_TRACE) {
+			Bucket *p;
+			summary_t* summary;
+			uint i;
+fprintf(APD_GLOBALS(dump_file), "%32s\t\tCalls\tTotal usecs\n", "Function Name");			
+			p = APD_GLOBALS(summary)->pListHead;
+			while(p != NULL) {
+				summary = (summary_t*) p->pData;
+				fprintf(APD_GLOBALS(dump_file), "%32s\t\t%d\t%d\n", p->arKey, summary->calls, summary->totalTime);
+				p = p->pListNext;
+			}
+		}
 	}
 	shutdownTracer();
 	if (APD_GLOBALS(dump_file)) {
 		fclose(APD_GLOBALS(dump_file));
 	}
+	zend_hash_destroy(APD_GLOBALS(summary));
+	efree(APD_GLOBALS(summary));
 	return SUCCESS;
 }
 
@@ -692,23 +744,17 @@ PHP_FUNCTION(apd_cluck)
     void** elements;
     int numElements;
     int i;
-    zval** errstr = NULL;
+	char *errstr = NULL, *delimiter = NULL;
+	int errstr_len = 0, delimiter_len = 0;
 
-    if (ZEND_NUM_ARGS() == 0) {}
-    else if (ZEND_NUM_ARGS() == 1 &&
-        zend_get_parameters_ex(1, &errstr) == SUCCESS)
-    {
-        convert_to_string_ex(errstr);
-    }
-    else
-    {
-        WRONG_PARAM_COUNT;
-    }
-
-	zend_printf("%s at %s line %d<br>\n", 
-				errstr?Z_STRVAL_PP(errstr):"clucked",
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ss", &errstr, &errstr_len, &delimiter, &delimiter_len) == FAILURE) {
+		return;
+	}
+	zend_printf("%s at %s line %d%s", 
+				errstr ? errstr : "clucked",
 				zend_get_executed_filename(TSRMLS_C), 
-				zend_get_executed_lineno(TSRMLS_C));
+				zend_get_executed_lineno(TSRMLS_C),
+				delimiter ? delimiter : "<BR />\n");
 
     stack = (CallStack*) APD_GLOBALS(stack);
     elements = apd_stack_toarray(stack);
@@ -732,9 +778,10 @@ PHP_FUNCTION(apd_cluck)
                 zend_printf("%s", stackEntry->args[j].strVal);
             }
         }
-        zend_printf(") called at %s line %d<BR>\n",
+        zend_printf(") called at %s line %d%s",
                     stackEntry->filename,
-                    stackEntry->lineNum);
+                    stackEntry->lineNum,
+					delimiter ? delimiter : "<BR />\n");
     }
 
 //  RETURN_TRUE;
@@ -746,27 +793,21 @@ PHP_FUNCTION(apd_croak)
     void** elements;
     int numElements;
     int i;
-    zval** errstr = NULL;
+	char *errstr = NULL, *delimiter = NULL;
+	int errstr_len = 0, delimiter_len = 0;
 
-    if (ZEND_NUM_ARGS() == 0) {}
-    else if (ZEND_NUM_ARGS() == 1 &&
-        zend_get_parameters_ex(1, &errstr) == SUCCESS)
-    {
-        convert_to_string_ex(errstr);
-    }
-    else
-    {
-        WRONG_PARAM_COUNT;
-    }
-
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ss", &errstr, &errstr_len, &delimiter, &delimiter_len) == FAILURE) {
+		return;
+	}
     stack = (CallStack*) APD_GLOBALS(stack);
     elements = apd_stack_toarray(stack);
     numElements = apd_stack_getsize(stack);
 
-	zend_printf("%s at %s line %d<br>\n", 
-				errstr?Z_STRVAL_PP(errstr):"croaked",
+	zend_printf("%s at %s line %d%s", 
+				errstr ? errstr : "croaked",
 				zend_get_executed_filename(TSRMLS_C), 
-				zend_get_executed_lineno(TSRMLS_C));
+				zend_get_executed_lineno(TSRMLS_C),
+				delimiter ? delimiter : "<BR />\n");
 
     for (i = numElements-2; i >= 0; i--) {
         CallStackEntry* stackEntry;
@@ -785,39 +826,30 @@ PHP_FUNCTION(apd_croak)
                 zend_printf("%s", stackEntry->args[j].strVal);
             }
         }
-        zend_printf(") called at %s line %d<BR>\n",
+        zend_printf(") called at %s line %d%s",
                     stackEntry->filename,
-                    stackEntry->lineNum);
+                    stackEntry->lineNum,
+					delimiter ? delimiter : "<BR />\n");
     }
 	zend_bailout();
 }
 
 PHP_FUNCTION(apd_dump_regular_resources) 
-{	
-	zval **array;
-	int ac = ZEND_NUM_ARGS();
+{
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "") == FAILURE) {
+		return;
+	}
 
-	if(ac != 1 || zend_get_parameters_ex(ac, &array) == FAILURE) {
-		WRONG_PARAM_COUNT;
-	}
-	if(__apd_dump_regular_resources(array)) {
-		RETURN_FALSE;
-	}
-	RETURN_TRUE;
+	__apd_dump_regular_resources(return_value TSRMLS_CC);
 }
 
 PHP_FUNCTION(apd_dump_persistent_resources)
 {  
-    zval **array;
-    int ac = ZEND_NUM_ARGS();
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "") == FAILURE) {
+		return;
+	}
 
-    if(ac != 1 || zend_get_parameters_ex(ac, &array) == FAILURE) {
-        WRONG_PARAM_COUNT;
-    }
-    if(__apd_dump_persistent_resources(array)) {
-        RETURN_FALSE;
-    }
-    RETURN_TRUE;
+    __apd_dump_persistent_resources(return_value TSRMLS_CC);
 }
 
 #define TEMP_OVRD_FUNC_NAME "__overridden__"
@@ -846,8 +878,8 @@ PHP_FUNCTION(override_function)
 	eval_code = (char *) emalloc(eval_code_length);
 	sprintf(eval_code, "function " TEMP_OVRD_FUNC_NAME "(%s){%s}",
 		Z_STRVAL_PP(z_function_args), Z_STRVAL_PP(z_function_code));
-	eval_name = zend_make_compiled_string_description("runtime-created override function");
-	retval = zend_eval_string(eval_code, NULL, eval_name CLS_CC ELS_CC);
+	eval_name = zend_make_compiled_string_description("runtime-created override function" TSRMLS_CC);
+	retval = zend_eval_string(eval_code, NULL, eval_name TSRMLS_CC);
 	efree(eval_code);
 	efree(eval_name);
 
@@ -893,7 +925,8 @@ PHP_FUNCTION(rename_function)
   if(zend_hash_find(EG(function_table), Z_STRVAL_PP(z_orig_fname),
     Z_STRLEN_PP(z_orig_fname) + 1, (void **) &func) == FAILURE)
   {
-    zend_error(E_WARNING, "rename(%s, %s) failed: %s does not exist!",
+    zend_error(E_WARNING, "%s(%s, %s) failed: %s does not exist!",
+	  get_active_function_name(TSRMLS_C),
       Z_STRVAL_PP(z_orig_fname),  Z_STRVAL_PP(z_new_fname),
       Z_STRVAL_PP(z_orig_fname));
     RETURN_FALSE;
@@ -901,7 +934,8 @@ PHP_FUNCTION(rename_function)
   if(zend_hash_find(EG(function_table), Z_STRVAL_PP(z_new_fname),
     Z_STRLEN_PP(z_new_fname) + 1, (void **) &dummy_func) == SUCCESS)
   {
-    zend_error(E_WARNING, "rename(%s, %s) failed: %s already exists!",
+    zend_error(E_WARNING, "%s(%s, %s) failed: %s already exists!",
+	  get_active_function_name(TSRMLS_C),
       Z_STRVAL_PP(z_orig_fname),  Z_STRVAL_PP(z_new_fname),
       Z_STRVAL_PP(z_new_fname));
     RETURN_FALSE;
@@ -910,14 +944,16 @@ PHP_FUNCTION(rename_function)
     Z_STRLEN_PP(z_new_fname) + 1, func, sizeof(zend_function),
     NULL) == FAILURE)
   {
-    zend_error(E_WARNING, "Failed to insert %s into EG(function_table)",
+    zend_error(E_WARNING, "%s() failed to insert %s into EG(function_table)",
+	  get_active_function_name(TSRMLS_C),
       Z_STRVAL_PP(z_new_fname));
     RETURN_FALSE;
   }
   if(zend_hash_del(EG(function_table), Z_STRVAL_PP(z_orig_fname),
     Z_STRLEN_PP(z_orig_fname) + 1) == FAILURE)
   {
-    zend_error(E_WARNING, "Failed to remove %s from function table",
+    zend_error(E_WARNING, "%s() failed to remove %s from function table",
+	  get_active_function_name(TSRMLS_C),
       Z_STRVAL_PP(z_orig_fname));
     zend_hash_del(EG(function_table), Z_STRVAL_PP(z_new_fname),
       Z_STRLEN_PP(z_new_fname) + 1);
@@ -964,7 +1000,8 @@ PHP_FUNCTION(apd_set_session_trace)
 			dumpdir = APD_GLOBALS(dumpdir);
 		}
 		else {
-			zend_error(E_WARNING, "No Dumpdir specified for apd_set_session_trace()");
+			zend_error(E_WARNING, "%s() no dumpdir specified",
+					   get_active_function_name(TSRMLS_C));
 			RETURN_FALSE;
 		}
 		convert_to_long(*z_bitmask);
@@ -984,8 +1021,8 @@ PHP_FUNCTION(apd_set_session_trace)
 	path_len = strlen(dumpdir) + 1 + strlen("apd_dump_") + 5;
 	path = (char *) emalloc((path_len + 1)* sizeof(char) );
 	snprintf(path, path_len + 1, "%s/apd_dump_%05d", dumpdir, getpid());
-	if((APD_GLOBALS(dump_file) = php_fopen_wrapper(path, "a",  IGNORE_URL, &issock, &socketd, NULL)) == NULL) {
-		zend_error(E_ERROR, "Failed to open %s for tracing", path);
+	if((APD_GLOBALS(dump_file) = php_fopen_wrapper(path, "a",  IGNORE_URL, &issock, &socketd, NULL TSRMLS_CC)) == NULL) {
+		zend_error(E_ERROR, "%s() failed to open %s for tracing", get_active_function_name(TSRMLS_C), path);
 	}	
 	efree(path);
 	starttime = time(0);
@@ -1099,7 +1136,10 @@ ZEND_DLEXPORT void fcallBegin(zend_op_array *op_array)
 	apd_stack_t* argStack;
 	char* functionName;
 	char fname_buffer[1024];
-	HashTable * func_table = EG(function_table);
+	HashTable *func_table;
+	TSRMLS_FETCH();
+
+	func_table = EG(function_table);
 
 	curOpCode = *EG(opline_ptr);
 	endOpCode = op_array->opcodes + op_array->last + 1;
@@ -1305,6 +1345,7 @@ ZEND_DLEXPORT void fcallEnd(zend_op_array *op_array)
 
 int apd_zend_startup(zend_extension *extension)
 {
+	TSRMLS_FETCH();
 	CG(extended_info) = 1;  // XXX: this is ridiculous
 	return zend_startup_module(&apd_module_entry);
 }
