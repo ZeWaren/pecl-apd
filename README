@@ -12,7 +12,10 @@ zend_extension="/path/to/php_apd.so"
 ;; set the directory for trace dumps
 apd.dumpdir="/path/to/tracedump/destdir"  
 
-in your php file, add:
+If you are running the cgi version of php, you will need to add the '-e' 
+flag to enable extended info for apd to work properly.
+
+Next, in your php file, add:
 
 apd_set_session_trace(N);
 
