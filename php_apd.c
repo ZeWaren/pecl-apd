@@ -1060,10 +1060,8 @@ ZEND_DLEXPORT void fcallBegin(zend_op_array *op_array)
 								curOpCode->op1.u.constant.value.str.len);
 					}
 					break;
-				case IS_VAR:
+				case IS_VAR:  /* Does this happen? */
 					if (CG(class_entry).name)	{
-fprintf(stderr, "DEBUG in method call op_type is %d\n", curOpCode->op1.op_type);
-/*						func_table = &CG(class_entry).function_table; */
 						sprintf(fname_buffer, "%s::%p", 
 								CG(class_entry).name,
 								curOpCode->op2.u.constant.value.str.val
@@ -1090,11 +1088,9 @@ fprintf(stderr, "DEBUG in method call op_type is %d\n", curOpCode->op1.op_type);
 				zval* function_name;
 
 				tmpOpCode = curOpCode;
-				fprintf(stderr, "Searching for INIT_FCALL opcode\n");
 				while(tmpOpCode->opcode != ZEND_INIT_FCALL_BY_NAME) {
 					tmpOpCode--;
 				}
-				fprintf(stderr, "Found INIT_FCALL opcode\n");
 				switch(curOpCode->op1.op_type)  {
 					case IS_CONST:
 						switch(tmpOpCode->op2.op_type) {
@@ -1111,7 +1107,22 @@ fprintf(stderr, "DEBUG in method call op_type is %d\n", curOpCode->op1.op_type);
 						}
 						break;
 					case IS_VAR:
-						if (CG(class_entry).name)   {
+						if (tmpOpCode->op1.op_type == IS_CONST)   {
+							switch(tmpOpCode->op2.op_type) {
+								case IS_CONST:
+									sprintf(fname_buffer, "%s::%s",
+										tmpOpCode->op1.u.constant.value.str.val,
+										tmpOpCode->op2.u.constant.value.str.val
+									);
+									break;
+								default:
+									sprintf(fname_buffer, "%s::<???>",
+										tmpOpCode->op1.u.constant.value.str.val
+									);
+									break;
+							}
+						}
+						else if(CG(class_entry).name) {
 							switch(tmpOpCode->op2.op_type) {
 								case IS_CONST:
 									sprintf(fname_buffer, "%s::%s",
@@ -1145,6 +1156,7 @@ fprintf(stderr, "DEBUG in method call op_type is %d\n", curOpCode->op1.op_type);
 			break;
 		default:
 			fprintf(stderr, "Unexpected error %s:%d\n", __FILE__, __LINE__);
+			assert(0);
 			break;
 			
 	}
