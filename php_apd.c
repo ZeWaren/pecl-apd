@@ -200,7 +200,9 @@ static CallArg* mkCallArgVar(zend_op* curOp, CallArgType type)
 	return arg;
 }
 
-static CallStackEntry* mkCallStackEntry(const char* functionName,
+static CallStackEntry* mkCallStackEntry(
+		HashTable * func_table,
+		const char* functionName,
                                         int numArgs,
 										CallArg** args,
 										const char *filename,
@@ -232,7 +234,7 @@ static CallStackEntry* mkCallStackEntry(const char* functionName,
         }
     }
 
-	if(zend_hash_find(EG(function_table),(char *) functionName, strlen(functionName) + 1, (void **) &z_func) == FAILURE || z_func->type != ZEND_USER_FUNCTION)
+	if(zend_hash_find(func_table,(char *) functionName, strlen(functionName) + 1, (void **) &z_func) == FAILURE || z_func->type != ZEND_USER_FUNCTION)
 	{
 		int i;
 		for(i = 0; i < numArgs; i++) {
@@ -322,7 +324,9 @@ static void shutdownTracer()
 	apd_stack_destroy(stack);
 }
 
-static void traceFunctionEntry(const char* functionName,
+static void traceFunctionEntry(
+		HashTable * func_table,
+		const char* functionName,
                                int numArgs,
 							   CallArg** args,
 							   const char *filename,
@@ -338,7 +342,7 @@ static void traceFunctionEntry(const char* functionName,
 
 	stack = (CallStack*) APD_GLOBALS(stack);
 
-	entry = mkCallStackEntry(functionName, numArgs, args, filename, lineNum);
+	entry = mkCallStackEntry(func_table, functionName, numArgs, args, filename, lineNum);
 
 	if(APD_GLOBALS(bitmask))
 	{
@@ -554,24 +558,27 @@ PHP_INI_END()
 PHP_MINIT_FUNCTION(apd)
 {
 	REGISTER_INI_ENTRIES();
-	#ifdef TRACE_ZEND_COMPILE /* we can trace the time to compile things. */
+	
+#ifdef TRACE_ZEND_COMPILE /* we can trace the time to compile things. */
 	gettimeofday(&APD_GLOBALS(req_begin), NULL);
-	gettimeofday(&APD_GLOBALS(last_call), NULL);
+//	gettimeofday(&APD_GLOBALS(last_call), NULL);
 	old_compile_file = zend_compile_file;
 	zend_compile_file = apd_compile_file;
-	#endif
+#endif
 	return SUCCESS;
 }
 
 PHP_RINIT_FUNCTION(apd)
 {
+
 	gettimeofday(&APD_GLOBALS(req_begin), NULL);
-	gettimeofday(&APD_GLOBALS(last_call), NULL);
+//	gettimeofday(&APD_GLOBALS(last_call), NULL);
 	APD_GLOBALS(last_mem_header) = AG(head)->pLast;
 	APD_GLOBALS(last_pmem_header) = AG(phead)->pLast;
 	APD_GLOBALS(dump_file) = stderr;
 	APD_GLOBALS(bitmask) = 0;
 	initializeTracer();
+	
 	return SUCCESS;
 }
 
@@ -955,9 +962,11 @@ static void dumpOpArray(zend_op_array* op_array)
 	fprintf(stderr, "T:                       %u\n", op_array->T);
 	fprintf(stderr, "last_brk_cont:           %u\n", op_array->last_brk_cont);
 	fprintf(stderr, "current_brk_cont:        %u\n", op_array->current_brk_cont);
+#if 0
 	fprintf(stderr, "start_op_number:         %d\n", op_array->start_op_number);
 	fprintf(stderr, "end_op_number:           %d\n", op_array->end_op_number);
 	fprintf(stderr, "last_executed_op_number: %d\n", op_array->last_executed_op_number);
+#endif
 	for (i = 0; i < op_array->last; i++) {
 		printZnode(stderr, "result", &op_array->opcodes[i].result);
 		printZnode(stderr, "op1   ", &op_array->opcodes[i].op1);
@@ -971,10 +980,12 @@ ZEND_DLEXPORT void fcallBegin(zend_op_array *op_array)
 	zend_op* endOpCode;		// one past the last opcode
 	apd_stack_t* argStack;
 	char* functionName;
+	char fname_buffer[1024];
+	HashTable * func_table = EG(function_table);
 
 	curOpCode = *EG(opline_ptr);
 	endOpCode = op_array->opcodes + op_array->last + 1;
-
+	
 	assert(curOpCode->opcode == ZEND_EXT_FCALL_BEGIN);
 
 	argStack = apd_stack_create();
@@ -1006,47 +1017,77 @@ ZEND_DLEXPORT void fcallBegin(zend_op_array *op_array)
 	}
 	assert(curOpCode != endOpCode);
 
-	if (curOpCode->opcode == ZEND_EXT_FCALL_END) {
-		functionName = apd_estrdup("func???");
-	}
-	else if (curOpCode->opcode == ZEND_INCLUDE_OR_EVAL) {
-		CallArg* arg;
+	switch(curOpCode->opcode)	{
+		case ZEND_EXT_FCALL_END:
+			functionName = apd_estrdup("func???");
+			break;
+		case ZEND_INCLUDE_OR_EVAL:
+			{
+				CallArg* arg;
 
-		switch (curOpCode->op2.u.constant.value.lval) {
-		  case ZEND_INCLUDE:
-			functionName = apd_estrdup("include");
-			break;
-		  case ZEND_INCLUDE_ONCE:
-			functionName = apd_estrdup("include_once");
-			break;
-		  case ZEND_REQUIRE:
-			functionName = apd_estrdup("require");
-			break;
-		  case ZEND_REQUIRE_ONCE:
-			functionName = apd_estrdup("require_once");
-			break;
-		  case ZEND_EVAL:
-			functionName = apd_estrdup("eval");
-			break;
-		  default:
-			functionName = apd_estrdup("[unknown]");
-			break;
-		}
+				switch (curOpCode->op2.u.constant.value.lval) {
+					case ZEND_INCLUDE:
+						functionName = apd_estrdup("include");
+						break;
+					case ZEND_INCLUDE_ONCE:
+						functionName = apd_estrdup("include_once");
+						break;
+					case ZEND_REQUIRE:
+						functionName = apd_estrdup("require");
+						break;
+					case ZEND_REQUIRE_ONCE:
+						functionName = apd_estrdup("require_once");
+						break;
+					case ZEND_EVAL:
+						functionName = apd_estrdup("eval");
+						break;
+					default:
+						functionName = apd_estrdup("[unknown]");
+						break;
+				}
 
-		arg = (CallArg*) apd_emalloc(sizeof(CallArg));
-		arg->type = CALL_ARG_LITERAL;
-		arg->strVal = apd_copystr(curOpCode->op1.u.constant.value.str.val,curOpCode->op1.u.constant.value.str.len);
-		apd_stack_push(argStack, arg);
-	}
-	else if (curOpCode->op1.u.constant.type == IS_STRING) {
-		functionName = apd_copystr(curOpCode->op1.u.constant.value.str.val,
-       	                                   curOpCode->op1.u.constant.value.str.len);
-	}
-	else {
-		functionName = apd_estrdup("(anonymous)");
+				arg = (CallArg*) apd_emalloc(sizeof(CallArg));
+				arg->type = CALL_ARG_LITERAL;
+				arg->strVal = apd_copystr(curOpCode->op1.u.constant.value.str.val,curOpCode->op1.u.constant.value.str.len);
+				apd_stack_push(argStack, arg);
+			}
+			break;
+		default:
+			switch(curOpCode->op1.op_type)	{
+				case IS_CONST:
+					if (curOpCode->op1.u.constant.type == IS_STRING) {
+						functionName = apd_copystr(
+								curOpCode->op1.u.constant.value.str.val,
+								curOpCode->op1.u.constant.value.str.len);
+					}
+					break;
+				case IS_VAR:
+					if (CG(class_entry).name)	{
+fprintf(stderr, "DEBUG in method call op_type is %d\n", curOpCode->op1.op_type);
+/*						func_table = &CG(class_entry).function_table; */
+						sprintf(fname_buffer, "%s::%s", 
+								CG(class_entry).name,
+								op_array->function_name
+							   );
+					}
+					else	{
+						sprintf(fname_buffer, "<???>::%s", 
+								op_array->function_name
+							   );
+
+					}
+					functionName = apd_estrdup(fname_buffer);
+					break;
+				default:
+					sprintf(fname_buffer, "<???>::%s",
+						op_array->function_name
+						);
+					functionName = apd_estrdup(fname_buffer);
+					break;
+			}
 	}
 
-	traceFunctionEntry(functionName, apd_stack_getsize(argStack),
+	traceFunctionEntry(func_table, functionName, apd_stack_getsize(argStack),
 		(CallArg**) apd_stack_toarray(argStack), op_array->filename,
 		curOpCode->lineno);
 
@@ -1087,7 +1128,7 @@ ZEND_EXTENSION();
 ZEND_DLEXPORT zend_extension zend_extension_entry = {
 	"PHP Debugger",
 	"0.0000000002",
-	"Daniel Cowgill and George Schlossnag;e",
+	"Daniel Cowgill and George Schlossnagle",
 	"http://www.communityconnectinc.com/",
 	"Copyright (c) 2001 Community Connect Inc.",
 	apd_zend_startup,
