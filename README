@@ -1,42 +1,91 @@
-This is an extremely beta howto on how to use this profiler.
+PHP-APD
+----------------------------------------------------------------------------- *
 
-build/install:
-in apd directory:
+    This is an extremely beta howto on how to use this profiler.
 
-run phpize; configure --enable-apd; make; cp .libs/php_apd.so /extensions/dir/
 
-in your ini file add:
+Buid/Installation process:
+----------------------------------------------------------------------------- *
 
-;; activate the extension
-zend_extension="/path/to/php_apd.so"
-;; set the directory for trace dumps
-apd.dumpdir="/path/to/tracedump/destdir"  
+    Make sure you have install the CGI version of PHP and it is available in
+    yuor current path aloing with the phpize script.
 
-If you are running the cgi version of php, you will need to add the '-e' 
-flag to enable extended info for apd to work properly.
+    Change into the source directory (either created from the downloaded TAR
+    archive or from checking out CVS) an run the following commands:
 
-Next, in your php file, add:
+        ./configure
+        make install
 
-apd_set_session_trace(N);
 
-where N is an integer which is formed by masking together:
+    This automatically should install the 'php_apd' zend module into your
 
-#define FUNCTION_TRACE 1
-#define ARGS_TRACE 2
-#define ASSIGNMENT_TRACE 4
-#define STATEMENT_TRACE 8
-#define MEMORY_TRACE 16
-#define TIMING_TRACE 32
+        <PHP INSTALL PATH>/lib/php/<ZEND VERSION><-OPTIONAL_DEBUG>/
 
-I would seriously not recommend using MEMORY_TRACE.  It is very slow and 
-does not appear to be accurate (great, huh?)  also ASSIGNMENT_TRACE is
-not implemented. So, to turn on all functional traces (TIMING, FUNCTIONS,
-and ARGS) use
+    directory. It isn't mandatory to have it there, in fact you can install
+    it anywhere you care
 
-apd_set_session_trace(35);
 
-run your script.  Output will be written to pdb.dumpdir/apd_dump_<pid>
-inside the file is ouput like:
+    In your INI file, add the following lines:
+
+        zend_extension = /absolute/path/to/php_apd.so
+        apd.dumpdir = /absolute/path/to/trace/directory
+
+    If you're using a debug build of PHP, make sure you use
+    zend_extension_debug instead of zend_extension:
+
+        zend_extension_debug = /absolute/path/to/php_apd.so
+
+
+    zend_extension(_debug):
+
+        You should always specify the absolute path to your extensions. If you don't
+        specify a path it is by default search in your systems library path
+        (usually /usr/local/lib, /usr/lib, etc)
+
+    apd.dumpdir:
+
+        This can eitehr be an absolute path or also a relative path. Relative
+        means always relative to your PHP executable.
+
+
+    If you're running the CGI version of PHP, you will need to add the '-e'
+    flag to enable extended information for apd to work properly.
+
+
+How to use PHP-APD in your scripts
+----------------------------------------------------------------------------- *
+
+    In your PHP script, add the following line:
+
+        apd_set_session_trace(N);
+
+    where N is an integer which is formed by masking together the following
+    values:
+
+        FUNCTION_TRACE      1
+        ARGS_TRACE          2
+        ASSIGNMENT_TRACE    4
+        STATEMENT_TRACE     8
+        MEMORY_TRACE        16
+        TIMING_TRACE        32
+        SUMMARY_TRACE       64
+
+    I would seriously not recommend using MEMORY_TRACE.  It is very slow and
+    does not appear to be accurate (great, huh?)  also ASSIGNMENT_TRACE is not
+    implemented. So, to turn on all functional traces (TIMING, FUNCTIONS, ARGS
+    SUMMARY (like strace -c)) use:
+
+        apd_set_session_trace(99);
+
+
+    Now run your script.
+
+
+    The dump output will be writting to:
+
+        <apd.dumpdir>/apd_dump_<pid>
+
+    The output itself will look something like:
 
 16:37:51(george@wasabi)[~/src/apd]> cat /tmp/apd_dump_31994 
 
@@ -71,14 +120,30 @@ Trace Ended at Fri Aug 10 16:37:45 2001
 ---------------------------------------------------------------------------
 
 
-There are othe debugging/overloading functions in apd:
+Implemented Debugging Functions
+----------------------------------------------------------------------------- *
 
-apd_callstack(): dump a call stack at your current place  (very cool)
-apd_cluck([string]): behaves like perl's Carp::cluck.  Throw a warning and
-a callstack.
-apd_croak([string]): behaves like perl's Carp::croak.  Throw a warning, 
-a callstack and then exit.
-apd_dump_regular_resources(\$array_ref): fills out an array of the current instatiated regular resources.
-apd_dump_persistent_resources(\$array_ref): fills out an array of the current instatiated persistent resources.
-override_function(string function_name, string function_args, dtring function_code):  syntax similair to create function().  Overrides built-in functions (replaces them in the symbol table)
-rename_function(string orig_name, string new_name):  renames orig_name to new_name in the global function_table.  Useful for temporarly overriding builtin functions.
+    array apd_callstack()
+        Returns the current call stack as an array (very cool).
+
+    apd_cluck([string warning[,string line delimiter])
+        Behaves like perl's Carp::cluck. Throw a warning and a callstack.
+        The default line delimiter is "<BR />\n".
+
+    apd_croak([string error[, string line delimiter]])
+        Behaves like perl's Carp::croak. Throw an error, a callstack and then
+        exit.  The default line delimiter is "<BR />\n".
+
+    array apd_dump_regular_resources()
+        Return all current regular resources as an array.
+
+    array apd_dump_persistent_resources()
+        Return all persistent resources as an array.
+
+    override_function(string func_name, string func_args, string func_code):
+        Syntax similar to create_function(). Overrides built-in functions
+        (replaces them in the symbol table).
+
+    rename_function(string orig_name, string new_name)
+        Renames orig_name to new_name in the global function_table.  Useful
+        for temporarly overriding builtin functions.
