@@ -4,7 +4,7 @@ require "Console/Getopt.php";
 $con = new Console_Getopt;
 $args = $con->readPHPArgv();
 array_shift($args);
-$shortoptions = 'achiIlMrRsStTuUO:vzZ';
+$shortoptions = 'acg:hiIlMrRsStTuUO:vzZ';
 $retval = $con->getopt( $args, $shortoptions);
 if(is_object($retval)) {
     usage();
@@ -62,7 +62,7 @@ while($line = fgets($DATA)) {
                 if(array_key_exists('c', $opt)) {
                     printf("%2.02f ", $rtotal/$cfg['hz']);
                 }
-                print str_repeat("  ", $indent_cur).$symbol_hash[$index_last].$repstr."\n";
+                print str_repeat("  ", $indent_last).$symbol_hash[$index_last].$repstr."\n";
                 $repstr = '';
                 $repcnt = 0;
                 $index_last = $index_cur;
