@@ -144,8 +144,8 @@ Total User Time    = %4.2f
 ", $cfg['caller'], $rtotal/$cfg['hz'], $stotal/$cfg['hz'], $utotal/$cfg['hz']);
 print "\n
          Real         User        System             secs/    cumm
-%Time (excl/cumm)  (excl/cumm)  (excl/cumm) Calls    call    s/call Memory Usage Name
-------------------------------------------------------------------------\n";
+%Time (excl/cumm)  (excl/cumm)  (excl/cumm) Calls    call    s/call  Memory Usage Name
+--------------------------------------------------------------------------------------\n";
 $l = 0;
 //foreach (usort(array_keys($symbol_hash), $sort) as $j) {
 uksort($symbol_hash, $sort);
@@ -165,6 +165,7 @@ foreach (array_keys($symbol_hash) as $j) {
         $ncalls = $calls[$j];
 	if(array_key_exists('z', $opt)) {
         	$percall = ($usecs + $ssecs)/$ncalls;
+	        $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
                 if($utotal + $stotal) {
 		    $pcnt = 100*($stimes[$j] + $utimes[$j])/($utotal + $stotal);
                 }
@@ -173,7 +174,8 @@ foreach (array_keys($symbol_hash) as $j) {
                 }
 	}
 	if(array_key_exists('Z', $opt)) {
-        	$percall = ($c_usecs + $c_ssecs)/$ncalls;
+        	$percall = ($usecs + $ssecs)/$ncalls;
+	        $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
                 if($utotal + $stotal) {
 		    $pcnt = 100*($c_stimes[$j] + $c_utimes[$j])/($utotal + $stotal);
                 }
@@ -183,6 +185,7 @@ foreach (array_keys($symbol_hash) as $j) {
 	}
 	if(array_key_exists('r', $opt)) {
         	$percall = ($rsecs)/$ncalls;
+	        $cpercall = ($c_rsecs)/$ncalls;
                 if($rtotal) {
 		    $pcnt = 100*$rtimes[$j]/$rtotal;
                 }
@@ -191,7 +194,8 @@ foreach (array_keys($symbol_hash) as $j) {
                 }
 	}
 	if(array_key_exists('R', $opt)) {
-        	$percall = ($c_rsecs)/$ncalls;
+        	$percall = ($rsecs)/$ncalls;
+	        $cpercall = ($c_rsecs)/$ncalls;
                 if($rtotal) {
 		    $pcnt = 100*$c_rtimes[$j]/$rtotal;
                 }
@@ -201,6 +205,7 @@ foreach (array_keys($symbol_hash) as $j) {
 	}
 	if(array_key_exists('u', $opt)) {
         	$percall = ($usecs)/$ncalls;
+	        $cpercall = ($c_usecs)/$ncalls;
                 if($utotal) {
 		    $pcnt = 100*$utimes[$j]/$utotal;
                 } 
@@ -209,7 +214,8 @@ foreach (array_keys($symbol_hash) as $j) {
                 }
 	}
 	if(array_key_exists('U', $opt)) {
-        	$percall = ($c_usecs)/$ncalls;
+        	$percall = ($usecs)/$ncalls;
+	        $cpercall = ($c_usecs)/$ncalls;
                 if($utotal) {
 		    $pcnt = 100*$c_utimes[$j]/$utotal;
                 }
@@ -219,6 +225,7 @@ foreach (array_keys($symbol_hash) as $j) {
 	}
 	if(array_key_exists('s', $opt)) {
         	$percall = ($ssecs)/$ncalls;
+	        $cpercall = ($c_ssecs)/$ncalls;
                 if($stotal) {
 		    $pcnt = 100*$stimes[$j]/$stotal;
                 }
@@ -227,7 +234,8 @@ foreach (array_keys($symbol_hash) as $j) {
                 }
 	}
 	if(array_key_exists('S', $opt)) {
-        	$percall = ($c_ssecs)/$ncalls;
+        	$percall = ($ssecs)/$ncalls;
+	        $cpercall = ($c_ssecs)/$ncalls;
                 if($stotal) {
 		    $pcnt = 100*$c_stimes[$j]/$stotal;
                 }
@@ -235,11 +243,10 @@ foreach (array_keys($symbol_hash) as $j) {
                     $pcnt = 100;
                 }
 	}
-        $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
+//        $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
         $mem_usage = $mem[$j];
         $name = $symbol_hash[$j];
-        printf("%3.01f %2.02f %2.02f  %2.02f %2.02f  %2.02f %2.02f  %4d  %2.04f   %2.02f %12d %s\n", $pcnt, $rsecs, $c_rsecs, $usecs, $c_usecs, $ssecs, $c_ssecs, $ncalls, $percall, $cpercall, $mem_usage, $name);
-//        printf("%2.02f %2.02f %2.02f %2.02f %2.02f %2.02f %2.02f   %4d  %2.04f   %2.02f %s\n", $pcnt, $rsecs, $c_rsecs, $usecs, $c_usecs, $ssecs, $c_ssecs, $ncalls, $percall, $cpercall, $name);
+        printf("%3.01f %2.02f %2.02f  %2.02f %2.02f  %2.02f %2.02f  %4d  %2.04f   %2.04f %12d %s\n", $pcnt, $rsecs, $c_rsecs, $usecs, $c_usecs, $ssecs, $c_ssecs, $ncalls, $percall, $cpercall, $mem_usage, $name);
     }
 }
 
