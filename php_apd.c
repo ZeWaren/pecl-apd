@@ -501,7 +501,11 @@ static void traceFunctionExit(char *fname)
                                                   strlen(fname) + 1, 
                                                   (void *) &summaryStats) == SUCCESS )
         {
+            #ifdef MEMORY_LIMIT
+            apd_pprof_fprintf("- %d %d\n", summaryStats->index, AG(allocated_memory));
+            #else
             apd_pprof_fprintf("- %d\n", summaryStats->index);
+            #endif
         } else {
             summaryStats = (summary_t *) emalloc(sizeof(summary_t));
             summaryStats->calls = 1;
@@ -509,7 +513,11 @@ static void traceFunctionExit(char *fname)
             summaryStats->totalTime = 0;
             zend_hash_add(APD_GLOBALS(summary), fname, strlen(fname) +
  1, summaryStats, sizeof(summary_t), NULL);
+            #ifdef MEMORY_LIMIT
+            apd_pprof_fprintf("- %d %d\n", summaryStats->index, AG(allocated_memory));
+            #else
             apd_pprof_fprintf("- %d\n", summaryStats->index);
+            #endif
         }
     }
     freeCallStackEntry(entry);
