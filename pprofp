@@ -1,4 +1,4 @@
-#!/usr/bin/env php
+#!/usr/bin/env php 
 <?
 require "Console/Getopt.php";
 $con = new Console_Getopt;
@@ -38,12 +38,6 @@ while($line = fgets($DATA)) {
     }
     if( $token == '+') {
         list($index_cur, $notes) = preg_split("/ /",$data, 2);
-        $utimes[$index_cur] = $utimes[$index_cur] || 0;
-        $stimes[$index_cur] = $stimes[$index_cur] || 0;
-        $rtimes[$index_cur] = $rtimes[$index_cur] || 0;
-        $c_utimes[$index_cur] = $c_utimes[$index_cur] || 0;
-        $c_stimes[$index_cur] = $c_stimes[$index_cur] || 0;
-        $c_rtimes[$index_cur] = $c_rtimes[$index_cur] || 0;
         $calls[$index_cur]++;
         array_push($callstack, $index_cur);
         if(array_key_exists('T', $opt)) {
@@ -69,34 +63,37 @@ while($line = fgets($DATA)) {
                 $index_last = $index_cur;
                 $indent_last = $indent_cur;
             }
-            $indent_cur++;
         }
+	$indent_cur++;
         continue;
     }
     if( $token == '@') {
         list($t_utime, $t_stime, $t_rtime) = preg_split("/ /", $data);
-        $utimes[$index_cur] += $t_utime;
+        continue;
+    }
+    if ($token == '-') {
+        list  ($index, $notes) = preg_split("/ /", $data, 2);
+        $indent_cur--;
+        $utimes[$index] += $t_utime;
         $utotal += $t_utime;
-        $stimes[$index_cur] += $t_stime;
+        $stimes[$index] += $t_stime;
         $stotal += $t_stime;
-        $rtimes[$index_cur] += $t_rtime;
+        $rtimes[$index] += $t_rtime;
         $rtotal += $t_rtime;
         foreach ($callstack as $stack_element) {
             $c_utimes[$stack_element] += $t_utime;
             $c_stimes[$stack_element] += $t_stime;
             $c_rtimes[$stack_element] += $t_rtime;
         }
-        conntinue;
-    }
-    if ($token == '-') {
-        list  ($index, $notes) = preg_split("/ /", $data, 2);
-        $indent_cur--;
-        array_pop($callstack);
+	$t_utime = 0;
+	$t_stime = 0;
+	$t_rtime = 0;
+
+        $tmp = array_pop($callstack);
         continue;
     }
 }
 parse_info('FOOTER', $DATA, $cfg);
-
 $sort = 'by_time';
 if(array_key_exists('l', $opt)) { $sort = 'by_calls'; }
 if(array_key_exists('a', $opt)) { $sort = 'by_name'; }
@@ -112,7 +109,7 @@ printf("
 Total Elapsed Time = %4.2f
 Total System Time  = %4.2f
 Total User Time    = %4.2f
-", $cfg['total_wall']/$cfg['hz'], $cfg['total_sys']/$cfg['hz'], $cfg['total_user']/$cfg['hz']);
+", $rtotal/$cfg['hz'], $stotal/$cfg['hz'], $utotal/$cfg['hz']);
 print "\n
          Real         User        System           secs/    cumm
 %Time (excl/cumm)  (excl/cumm)  (excl/cumm) Calls  call    s/call Name
@@ -131,7 +128,38 @@ foreach (array_keys($symbol_hash) as $j) {
         $c_ssecs = $c_stimes[$j]/$cfg['hz'];
         $c_usecs = $c_utimes[$j]/$cfg['hz'];
         $ncalls = $calls[$j];
-        $percall = ($usecs + $ssecs)/$ncalls;
+	if(array_key_exists('z', $opt)) {
+        	$percall = ($usecs + $ssecs)/$ncalls;
+		$pcnt = 100*($stimes[$j] + $utimes[$j])/($utotal + $stotal);
+	}
+	if(array_key_exists('Z', $opt)) {
+        	$percall = ($c_usecs + $c_ssecs)/$ncalls;
+		$pcnt = 100*($stimes[$j] + $utimes[$j])/($utotal + $stotal);
+	}
+	if(array_key_exists('r', $opt)) {
+        	$percall = ($rsecs)/$ncalls;
+		$pcnt = 100*$rtimes[$j]/$rtotal;
+	}
+	if(array_key_exists('R', $opt)) {
+        	$percall = ($c_rsecs)/$ncalls;
+		$pcnt = 100*$c_rtimes[$j]/$rtotal;
+	}
+	if(array_key_exists('u', $opt)) {
+        	$percall = ($usecs)/$ncalls;
+		$pcnt = 100*$utimes[$j]/$utotal;
+	}
+	if(array_key_exists('U', $opt)) {
+        	$percall = ($c_usecs)/$ncalls;
+		$pcnt = 100*$c_utimes[$j]/$utotal;
+	}
+	if(array_key_exists('s', $opt)) {
+        	$percall = ($ssecs)/$ncalls;
+		$pcnt = 100*$stimes[$j]/$stotal;
+	}
+	if(array_key_exists('S', $opt)) {
+        	$percall = ($c_ssecs)/$ncalls;
+		$pcnt = 100*$c_stimes[$j]/$stotal;
+	}
         $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
         $name = $symbol_hash[$j];
         printf("%3.01f %2.02f %2.02f  %2.02f %2.02f  %2.02f %2.02f  %4d  %2.02f   %2.02f %s\n", $pcnt, $rsecs, $c_rsecs, $usecs, $c_usecs, $ssecs, $c_ssecs, $ncalls, $percall, $cpercall, $name);
