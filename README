@@ -74,6 +74,10 @@ Trace Ended at Fri Aug 10 16:37:45 2001
 There are othe debugging/overloading functions in apd:
 
 apd_callstack(): dump a call stack at your current place  (very cool)
+apd_cluck([string]): behaves like perl's Carp::cluck.  Throw a warning and
+a callstack.
+apd_croak([string]): behaves like perl's Carp::croak.  Throw a warning, 
+a callstack and then exit.
 apd_dump_regular_resources(\$array_ref): fills out an array of the current instatiated regular resources.
 apd_dump_persistent_resources(\$array_ref): fills out an array of the current instatiated persistent resources.
 override_function(string function_name, string function_args, dtring function_code):  syntax similair to create function().  Overrides built-in functions (replaces them in the symbol table)
