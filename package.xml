@@ -15,12 +15,13 @@ APD is a fully feature profiler/debugger that is loaded as a zend_extension.  It
         <email>george@omniti.com</email>
         </maintainer>
     </maintainers>
-    <release>
-        <version>0.2</version>
-        <state>stable</state>
+     <release>
+        <version>0.3</version>
         <date>2002-10-15</date>
+        <state>beta</state>
         <notes>
-Initial release into PECL.  Previous notes available at http://apd.communityconnect.com
+            Complete rewrite of internal to use the zend_execute function
+            pointer instead of the engine hooks for tracing.
         </notes>
     </release>
     <filelist>
@@ -47,4 +48,14 @@ Initial release into PECL.  Previous notes available at http://apd.communityconn
             <file>win32compat.h</file>
          </dir>
      </filelist> 
+     <changelog>
+     <release>
+        <version>0.2</version>
+        <date>2002-10-15</date>
+        <state>stable</state>
+        <notes>
+        First release into PECL.  Previous chagelog at http://apd.communityconnect.com
+        </notes>
+      </release>
+      </changelog>  
 </package>

@@ -33,7 +33,7 @@
 #include "zend_execute.h"
 #include "zend_compile.h"
 #include "zend_extensions.h"
-
+ 
 #ifndef PHP_WIN32
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -106,23 +106,25 @@ extern zend_module_entry apd_module_entry;
 ZEND_BEGIN_MODULE_GLOBALS(apd)
 	void* stack;
 	HashTable* summary;
+	HashTable* file_summary;
 	char* dumpdir; /* directory for dumping seesion traces to */
 	FILE* dump_file; /* FILE for dumping session traces to */
-    FILE* pprof_file; /* File for profiling output */
-    int dump_sock_id; /* Socket for dumping data to */
+	FILE* pprof_file; /* File for profiling output */
+	int dump_sock_id; /* Socket for dumping data to */
 	struct timeval req_begin;  /* Time the request began */
 	struct timeval lasttime;  /* Last time recorded */
 	clock_t firstclock;  /* Last time recorded */
 	clock_t lastclock;  /* Last time recorded */
 	struct tms firsttms;  /* Last time recorded */
 	struct tms lasttms;  /* Last time recorded */
-    int index;                /* current index of functions for pprof tracing */
+	int index;                /* current index of functions for pprof tracing */
+	int file_index;                /* current index of functions for pprof tracing */
 	long bitmask;              /* Bitmask for determining what gets logged */
-    long pproftrace;           /* Flag for whether we are doing profiling */
+	long pproftrace;           /* Flag for whether we are doing profiling */
 	void* last_mem_header;		/* tail of persistent zend_mem_header list */
 	void* last_pmem_header;		/* tail of persistent zend_mem_header list */
-    int interactive_mode;     /* is interactive mode on */
-    int ignore_interactive;   /* ignore interactive mode flag for executing php from the debugger*/
+	int interactive_mode;     /* is interactive mode on */
+	int ignore_interactive;   /* ignore interactive mode flag for executing php from the debugger*/
 	int allocated_memory;
 ZEND_END_MODULE_GLOBALS(apd)
 

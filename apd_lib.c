@@ -138,9 +138,7 @@ void apd_strcat(char** dst, int* curSize, const char* src)
 	int srcLen;
 
 	srcLen = strlen(src);
-        if(src == 0) {
-            return;
-        }
+
 	if (*dst == 0) {
 		*curSize = srcLen+1;
 		*dst = (char*) malloc(*curSize);
