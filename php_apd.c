@@ -41,6 +41,8 @@ static ZEND_API zend_op_array* (*old_compile_file)(zend_file_handle*, int CLS_DC
 
 /* Declarations of functions to be exported. */
 PHP_FUNCTION(apd_callstack);
+PHP_FUNCTION(apd_cluck);
+PHP_FUNCTION(apd_croak);
 PHP_FUNCTION(apd_dump_regular_resources);
 PHP_FUNCTION(apd_dump_persistent_resources);
 PHP_FUNCTION(override_function);
@@ -53,6 +55,8 @@ PHP_FUNCTION(apd_set_session_trace);
 
 function_entry apd_functions[] = {
 	PHP_FE(apd_callstack, NULL)
+	PHP_FE(apd_cluck, NULL)
+	PHP_FE(apd_croak, NULL)
 	PHP_FE(apd_dump_regular_resources, NULL)
 	PHP_FE(apd_dump_persistent_resources, NULL)
 	PHP_FE(override_function, NULL)
@@ -682,6 +686,102 @@ PHP_FUNCTION(apd_callstack)
 //	RETURN_TRUE;
 }
 
+PHP_FUNCTION(apd_cluck)
+{
+    CallStack* stack;
+    void** elements;
+    int numElements;
+    int i;
+    zval** errstr = NULL;
+
+    if (ZEND_NUM_ARGS() == 0) {}
+    else if (ZEND_NUM_ARGS() == 1 &&
+        zend_get_parameters_ex(1, &errstr) == SUCCESS)
+    {
+        convert_to_string_ex(errstr);
+    }
+    else
+    {
+        WRONG_PARAM_COUNT;
+    }
+
+    stack = (CallStack*) APD_GLOBALS(stack);
+    elements = apd_stack_toarray(stack);
+    numElements = apd_stack_getsize(stack);
+
+
+    for (i = numElements-2; i >= 0; i--) {
+        CallStackEntry* stackEntry;
+        zval* phpEntry;
+        zval* args;
+        int j;
+
+        stackEntry = (CallStackEntry*) elements[i];
+
+        zend_printf("%s(", stackEntry->functionName);
+        for (j = 0; j < stackEntry->numArgs; j++) {
+            if (j < stackEntry->numArgs - 1) {
+                zend_printf("%s,", stackEntry->args[j].strVal);
+            }
+            else {
+                zend_printf("%s", stackEntry->args[j].strVal);
+            }
+        }
+        zend_printf(") called at %s line %d<BR>\n",
+                    stackEntry->filename,
+                    stackEntry->lineNum);
+    }
+
+//  RETURN_TRUE;
+}
+
+PHP_FUNCTION(apd_croak)
+{
+    CallStack* stack;
+    void** elements;
+    int numElements;
+    int i;
+    zval** errstr = NULL;
+
+    if (ZEND_NUM_ARGS() == 0) {}
+    else if (ZEND_NUM_ARGS() == 1 &&
+        zend_get_parameters_ex(1, &errstr) == SUCCESS)
+    {
+        convert_to_string_ex(errstr);
+    }
+    else
+    {
+        WRONG_PARAM_COUNT;
+    }
+
+    stack = (CallStack*) APD_GLOBALS(stack);
+    elements = apd_stack_toarray(stack);
+    numElements = apd_stack_getsize(stack);
+
+    for (i = numElements-2; i >= 0; i--) {
+        CallStackEntry* stackEntry;
+        zval* phpEntry;
+        zval* args;
+        int j;
+
+        stackEntry = (CallStackEntry*) elements[i];
+
+        zend_printf("%s(", stackEntry->functionName);
+        for (j = 0; j < stackEntry->numArgs; j++) {
+            if (j < stackEntry->numArgs - 1) {
+                zend_printf("%s,", stackEntry->args[j].strVal);
+            }
+            else {
+                zend_printf("%s", stackEntry->args[j].strVal);
+            }
+        }
+        zend_printf(") called at %s line %d<BR>\n",
+                    stackEntry->filename,
+                    stackEntry->lineNum);
+    }
+	zend_bailout();
+}
+
 PHP_FUNCTION(apd_dump_regular_resources) 
 {	
 	zval **array;
@@ -1091,6 +1191,7 @@ ZEND_DLEXPORT void fcallBegin(zend_op_array *op_array)
 					functionName = apd_estrdup(fname_buffer);
 					break;
 			}
+			break;
 		case ZEND_DO_FCALL_BY_NAME: 
 			{
 				zend_op* tmpOpCode;
