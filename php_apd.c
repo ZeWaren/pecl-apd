@@ -510,36 +510,8 @@ static void traceFunctionEntry(
 	{
 		apd_indent(&line, 2*print_indent);
 	}
-    if(APD_GLOBALS(pproftrace))
-    {
-        struct timeval elapsed;
-        struct timeval now;
-        struct tms walltimes;
-        clock_t clock;
-        if(APD_GLOBALS(index) > 1) {
-//          timevaldiff(&(entry->func_begin), &APD_GLOBALS(lasttime), &elapsed);
-//          APD_GLOBALS(lasttime) = entry->func_begin;
-        } else {
-//          gettimeofday(&now, NULL);
-//          timevaldiff(&now, &APD_GLOBALS(lasttime), &elapsed);
-//          APD_GLOBALS(lasttime) = now;
-        }
-        clock = times(&walltimes);
-//      APD_GLOBALS(lasttime) = entry->func_begin;
-        if ( (walltimes.tms_utime - APD_GLOBALS(lasttms).tms_utime) ||
-             (walltimes.tms_stime - APD_GLOBALS(lasttms).tms_stime) ||
-             (clock - APD_GLOBALS(lastclock)) )
+        if(APD_GLOBALS(bitmask) & TIMING_TRACE)
         {
-            apd_pprof_fprintf("@ %d %d %d\n", 
-                walltimes.tms_utime - APD_GLOBALS(lasttms).tms_utime, 
-                walltimes.tms_stime - APD_GLOBALS(lasttms).tms_stime, 
-                clock - APD_GLOBALS(lastclock));
-        }
-        APD_GLOBALS(lasttms) = walltimes;
-        APD_GLOBALS(lastclock) = clock;
-    }
-    if(APD_GLOBALS(bitmask) & TIMING_TRACE)
-    {
   		char *tmp;
 		int curSize;
 		timevaldiff(&(entry->func_begin), &APD_GLOBALS(req_begin), &elapsed);
@@ -549,7 +521,7 @@ static void traceFunctionEntry(
 		apd_strcat(&tmp, &curSize, line);
 		apd_efree(line);
 		line = tmp;
-    }
+        }
 	if(APD_GLOBALS(bitmask) & FUNCTION_TRACE) {
 		char *tmp;
 		int curSize;
