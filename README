@@ -13,6 +13,7 @@ Buid/Installation process:
     Change into the source directory (either created from the downloaded TAR
     archive or from checking out CVS) an run the following commands:
 
+        phpize  (not necessary if configure exists)
         ./configure
         make install
 
