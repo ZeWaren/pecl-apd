@@ -142,6 +142,7 @@ foreach($tree as $caller => $data) {
 		foreach($data['called_funcs'] as $counter => $items) {
 			foreach($items as $called_id => $costs) {
 				if(is_array($costs)) {
+					printf("cob=%s\n", $function_type[$called_id]);
 					printf("cfn=%s\n", $function_lookup[$called_id]);
 					foreach($costs as $file => $lines) {
 						printf("cfi=%s\ncalls=1\n", $file_lookup[$file]);
@@ -155,7 +156,6 @@ foreach($tree as $caller => $data) {
 	}
 	print "\n";
 }
-print "\ntotals=$total_cost\n";
 $buffer = ob_get_clean();
 print "Writing kcachegrind compatible output to $outfile\n";
 fwrite($OUT, $buffer);
