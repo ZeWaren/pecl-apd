@@ -4,7 +4,7 @@ require "Console/Getopt.php";
 $con = new Console_Getopt;
 $args = $con->readPHPArgv();
 array_shift($args);
-$shortoptions = 'acg:hiIlMrRsStTuUO:vzZ';
+$shortoptions = 'acg:hiIlmMrRsStTuUO:vzZ';
 $retval = $con->getopt( $args, $shortoptions);
 if(is_object($retval)) {
     usage();
@@ -31,6 +31,11 @@ while($line = fgets($DATA)) {
         break;
     }
     list($token, $data) = preg_split("/ /",$line, 2);
+    if($token == '!') {
+	list ($index, $file) = preg_split("/ /", $data, 2);
+	$file_hash[$index] = $file;
+	continue;
+    }
     if( $token == '&') {
         list ($index, $name, $type) = preg_split("/ /", $data, 3);
         $symbol_hash[$index] = $name;
@@ -38,7 +43,7 @@ while($line = fgets($DATA)) {
         continue;
     }
     if( $token == '+') {
-        list($index, $notes) = preg_split("/ /",$data, 2);
+        list($index, $file, $line) = preg_split("/ /",$data, 3);
         if(array_key_exists('i',$opt) && $symbol_type[$index] == 1) {
             continue;
         }	
@@ -50,7 +55,10 @@ while($line = fgets($DATA)) {
                 printf("%2.02f ", $rtotal/$cfg['hz']);
             }
             print str_repeat("  ", $indent_cur).$symbol_hash[$index_cur]."\n";
-        }
+	    if(array_key_exists('m', $opt)) {
+		print str_repeat("  ", $indent_cur)."C: $file_hash[$file]:$line M: $memory\n";
+	    }
+	}
         elseif(array_key_exists('t', $opt)) {
             if ( $indent_last == $indent_cur && $index_last == $index_cur ) {
                 $repcnt++;
@@ -63,10 +71,15 @@ while($line = fgets($DATA)) {
                     printf("%2.02f ", $rtotal/$cfg['hz']);
                 }
                 print str_repeat("  ", $indent_last).$symbol_hash[$index_last].$repstr."\n";
+		if(array_key_exists('m', $opt)) {
+		   print str_repeat("  ", $indent_cur)."C: $file_hash[$file_last]:$line_last M: $memory\n";
+		}
                 $repstr = '';
                 $repcnt = 0;
                 $index_last = $index_cur;
                 $indent_last = $indent_cur;
+		$file_last = $file;
+		$line_last = $line;
             }
         }
 	$indent_cur++;
@@ -77,7 +90,7 @@ while($line = fgets($DATA)) {
         continue;
     }
     if ($token == '-') {
-        list  ($index, $notes, $memory) = preg_split("/ /", $data, 3);
+        list  ($index, $memory) = preg_split("/ /", $data, 2);
         if(array_key_exists('i',$opt) && $symbol_type[$index] == 1)
         {
             continue;

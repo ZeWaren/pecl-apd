@@ -1239,7 +1239,7 @@ PHP_FUNCTION(apd_set_pprof_trace)
         convert_to_string_ex(z_dumpdir);
         dumpdir = Z_STRVAL_PP(z_dumpdir);
     }
-    path_len = strlen(dumpdir) + 1 + strlen("apd_dump_") + 5;
+    path_len = strlen(dumpdir) + 1 + strlen("pprof.") + 5;
     path = (char *) emalloc((path_len + 1)* sizeof(char) );
     snprintf(path, path_len + 1, "%s/pprof.%05d", dumpdir, getpid());
     if((APD_GLOBALS(pprof_file) = fopen(path, "a")) == NULL) {
