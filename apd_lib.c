@@ -50,9 +50,19 @@ char* apd_sprintf_real(const char* fmt, va_list args)
 {
 	char* newStr;
 	int size = 1;
+#ifdef va_copy
+	va_list copy;
+#endif
 	newStr = (char*) emalloc(size);
 	for (;;) {
-		int n = vsnprintf(newStr, size, fmt, args);
+		int n;
+#ifdef va_copy
+		va_copy(copy, args);
+		n = vsnprintf(newStr, size, fmt, copy);
+		va_end(copy);
+#else
+		n = vsnprintf(newStr, size, fmt, args);
+#endif
 		if (n > -1 && n < size) {
 			break;
 		}
