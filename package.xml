@@ -26,25 +26,25 @@ APD is a fully feature profiler/debugger that is loaded as a zend_extension.  It
     <filelist>
         <dir role="src" name="/">
             <file role="doc">LICENSE</file>
-            <file role="ext">Makefile.in</file>
+            <file role="src">Makefile.in</file>
             <file role="doc">README</file>
-            <file role="ext">apd.dsp</file>
-            <file role="ext">apd_lib.c</file>
-            <file role="ext">apd_lib.h</file>
-            <file role="ext">apd_stack.c</file>
-            <file role="ext">apd_stack.h</file>
-            <file role="ext">build</file>
-            <file role="ext">config.m4</file>
-            <file role="ext">opcode.c</file>
-            <file role="ext">opcode.h</file>
-            <file role="ext">php_apd.c</file>
-            <file role="ext">php_apd.h</file>
-            <file role="ext">php_sockets.h</file>
-            <file role="ext">php_sockets_win.h</file>
-            <file role="ext">pprofp</file>
-            <file role="ext">pprofp.pl</file>
-            <file role="ext">win32compat.c</file>
-            <file role="ext">win32compat.h</file>
+            <file role="src">apd.dsp</file>
+            <file role="src">apd_lib.c</file>
+            <file role="src">apd_lib.h</file>
+            <file role="src">apd_stack.c</file>
+            <file role="src">apd_stack.h</file>
+            <file role="src">build</file>
+            <file role="src">config.m4</file>
+            <file role="src">opcode.c</file>
+            <file role="src">opcode.h</file>
+            <file role="src">php_apd.c</file>
+            <file role="src">php_apd.h</file>
+            <file role="src">php_sockets.h</file>
+            <file role="src">php_sockets_win.h</file>
+            <file role="src">pprofp</file>
+            <file role="src">pprofp.pl</file>
+            <file role="src">win32compat.c</file>
+            <file role="src">win32compat.h</file>
          </dir>
      </filelist> 
      <changelog>
