@@ -2,7 +2,11 @@
 
 use Getopt::Std;
 
-getopts('altTO:v', \%opt);
+getopts('ahltTO:vz', \%opt);
+
+if(exists $opt{'h'}) {
+    usage();
+}
 $opt{'O'} ||= 15;
 
 my $datafile = shift;
@@ -24,6 +28,24 @@ sub parse_info($) {
         die "Incorrect header info (no clock rate";
     }
 }
+
+sub usage {
+    print "
+pprofp <flags> <trace file>
+    Sort options
+    -a          Sort by alphabetic names of subroutines.
+    -l          Sort by number of calls to subroutines
+    -z          Sort by user+system time spent in subroutines. (default)
+    -v          Sort by average amount of time spent in subroutines.
+
+    Display options
+    -O <cnt>    Specifies maximum number of subroutines to display. (default 15)
+    -t          Display compressed call tree.
+    -T          Display uncompressed call tree.
+";
+    exit();
+}    
+
 
 parse_info('HEADER');
 while(<DATA>) {
@@ -92,7 +114,10 @@ while(<DATA>) {
 }
 parse_info('FOOTER');
 
-print "\n\n%Time Real(excl/cum)  User(excl/cum)  Sys(excl/cum)  Calls  s/call Cs/call Name\n";
+print "\n\n
+         Real	      User        System           secs/    cumm
+%Time (excl/cumm)  (excl/cumm)  (excl/cumm) Calls  call    s/call Name
+----------------------------------------------------------------------\n";
 
 sub by_time {
 	($stimes->{$b} + $utimes->{$b}) <=> ($stimes->{$a} + $utimes->{$a});
@@ -107,7 +132,7 @@ sub by_calls {
 }
 
 sub by_name {
-	$symbol_hash{$a} cmp $symbol_hash{$b};
+	uc($symbol_hash{$a}) cmp uc($symbol_hash{$b});
 }
 
 my $sort = 'by_time';
@@ -117,7 +142,7 @@ $sort = 'by_avgcpu' if exists $opt{v};
 
 
 my $l = 0;
-foreach $j (sort by_percall  keys %symbol_hash) {
+foreach $j (sort $sort  keys %symbol_hash) {
     last if $l++ > $opt{'O'};
     $pcnt = ($stimes->{$j} + $utimes->{$j})/($utotal + $stotal + $itotal);
     $c_pcnt = ($c_stimes->{$j} + $utimes->{$j})/($utotal + $stotal + $itotal);
@@ -139,11 +164,10 @@ foreach $j (sort by_percall  keys %symbol_hash) {
     $name = $symbol_hash{$j};
     $~ = FULL_STAT;
     write;
-
 }
 
 format FULL_STAT =
-^>>>     ^>>>> ^>>>>     ^>>>> ^>>>>    ^>>>> ^>>>>   ^>>>>  ^>>>>   ^>>>> ^<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-$pcnt, $isecs, $c_isecs, $usecs, $c_usecs, $ssecs, $c_ssecs, $ncalls, $percall, $cpercall, $name
+^>>>  ^>>>> ^>>>> ^>>>> ^>>>> ^>>>> ^>>>>   ^>>>>  ^>>>>   ^>>>>  ^<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+$pcnt, $rsecs, $c_rsecs, $usecs, $c_usecs, $ssecs, $c_ssecs, $ncalls, $percall, $cpercall, $name
 .
 
