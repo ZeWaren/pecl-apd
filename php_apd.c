@@ -421,7 +421,15 @@ static void log_time(TSRMLS_D)
 		stime = diff_times(wall_ru.ru_stime, APD_GLOBALS(last_ru).ru_stime);
 		rtime = diff_times(clock, APD_GLOBALS(last_clock));
 		if(utime || stime || rtime) {
-			APD_GLOBALS(output).elapsed_time(APD_GLOBALS(current_file_index), zend_get_executed_lineno(TSRMLS_C), utime, stime, rtime);
+            int lineno = 0;
+            if(EG(active_op_array)) {
+				if(EG(active_op_array)->start_op) {
+					lineno = EG(active_op_array)->start_op->lineno;
+				} else if(EG(active_op_array)->opcodes) {
+					lineno = EG(active_op_array)->opcodes->lineno;
+				}
+			} 
+			APD_GLOBALS(output).elapsed_time(APD_GLOBALS(current_file_index), lineno, utime, stime, rtime);
 		}
 	}
 	
@@ -511,6 +519,7 @@ ZEND_API void apd_execute(zend_op_array *op_array TSRMLS_DC)
 	void **p;
 	int argCount;
 	zval **object_ptr_ptr;
+	
   	fname = apd_get_active_function_name(op_array TSRMLS_CC);
    	trace_function_entry(EG(function_table), fname, ZEND_USER_FUNCTION,
 						zend_get_executed_filename(TSRMLS_C),
