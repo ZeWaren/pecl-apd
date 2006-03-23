@@ -360,20 +360,20 @@ static void trace_function_entry(HashTable *func_table, const char *fname, int t
 		return;
 	}
 	
-	if (zend_hash_find(APD_GLOBALS(file_summary), (char *) filename, strlen(filename) + 1, (void *) &filenum) == FAILURE) {
+	if (zend_hash_find(&APD_GLOBALS(file_summary), (char *) filename, strlen(filename) + 1, (void *) &filenum) == FAILURE) {
 		filenum = (int *) emalloc(sizeof(int));
 		*filenum = ++APD_GLOBALS(file_index);
 		APD_GLOBALS(output).file_reference(*filenum, filename);
-		zend_hash_add(APD_GLOBALS(file_summary), (char *) filename, strlen(filename) + 1, filenum, sizeof(int), NULL);
+		zend_hash_add(&APD_GLOBALS(file_summary), (char *) filename, strlen(filename) + 1, filenum, sizeof(int), NULL);
 	}
 	APD_GLOBALS(current_file_index) = *filenum;
 
-	if (zend_hash_find(APD_GLOBALS(function_summary), (char *) fname, strlen(fname)+1, (void *) &function_index) == SUCCESS) {
+	if (zend_hash_find(&APD_GLOBALS(function_summary), (char *) fname, strlen(fname)+1, (void *) &function_index) == SUCCESS) {
 		APD_GLOBALS(output).enter_function(*function_index, *filenum, linenum);
 	} else {
 		function_index = (int *) emalloc(sizeof(int));
 		*function_index = ++APD_GLOBALS(function_index);
-		zend_hash_add(APD_GLOBALS(function_summary), (char *) fname, strlen(fname)+1, function_index, sizeof(int), NULL);
+		zend_hash_add(&APD_GLOBALS(function_summary), (char *) fname, strlen(fname)+1, function_index, sizeof(int), NULL);
 		APD_GLOBALS(output).declare_function(*function_index, fname, type);
 		APD_GLOBALS(output).enter_function(*function_index, *filenum, linenum);
 	}
@@ -397,12 +397,12 @@ static void trace_function_exit(char *fname)
 	allocated = AG(memory_limit);
 #endif
 	log_time(TSRMLS_C);	
-	if (zend_hash_find(APD_GLOBALS(function_summary), fname, strlen(fname) + 1, (void *) &function_index) == SUCCESS) {
+	if (zend_hash_find(&APD_GLOBALS(function_summary), fname, strlen(fname) + 1, (void *) &function_index) == SUCCESS) {
 		APD_GLOBALS(output).exit_function(*function_index, allocated);
 	} else {
 		function_index = (int *) emalloc(sizeof(int));
 		*function_index = ++APD_GLOBALS(function_index);
-		zend_hash_add(APD_GLOBALS(function_summary), fname, strlen(fname)+1, function_index, sizeof(int), NULL);
+		zend_hash_add(&APD_GLOBALS(function_summary), fname, strlen(fname)+1, function_index, sizeof(int), NULL);
 		APD_GLOBALS(output).exit_function(*function_index, allocated);
 	}
 }
@@ -483,27 +483,9 @@ PHP_INI_END()
    Module Startup and Shutdown Function Definitions
    --------------------------------------------------------------------------- */
 
-static void php_apd_init_globals(zend_apd_globals *apd_globals) 
-{
-	memset(apd_globals, 0, sizeof(zend_apd_globals));   
-	
-	apd_globals->function_summary = (HashTable *) malloc(sizeof(HashTable));
-	apd_globals->file_summary = (HashTable *) malloc(sizeof(HashTable));
-
-	zend_hash_init(apd_globals->function_summary, 0, NULL, NULL, 1);
-	zend_hash_init(apd_globals->file_summary, 0, NULL, NULL, 1);
-
-}
-
-static void php_apd_free_globals(zend_apd_globals *apd_globals)
-{
-	free(apd_globals->function_summary);
-	free(apd_globals->file_summary);
-}
-
 PHP_MINIT_FUNCTION(apd)
 {
-	ZEND_INIT_MODULE_GLOBALS(apd, php_apd_init_globals, php_apd_free_globals);
+	ZEND_INIT_MODULE_GLOBALS(apd, NULL, NULL)
 	REGISTER_INI_ENTRIES();
 	old_execute = zend_execute;
 	zend_execute = apd_execute;
@@ -554,6 +536,8 @@ ZEND_API void apd_execute_internal(zend_execute_data *execute_data_ptr, int retu
 
 PHP_RINIT_FUNCTION(apd)
 {
+	zend_hash_init(&APD_GLOBALS(function_summary), 0, NULL, NULL, 1);
+	zend_hash_init(&APD_GLOBALS(file_summary), 0, NULL, NULL, 1);
 	APD_GLOBALS(output).header = apd_pprof_output_header;
 	APD_GLOBALS(output).footer = apd_pprof_output_footer;
 	APD_GLOBALS(output).file_reference = apd_pprof_output_file_reference;
@@ -562,6 +546,8 @@ PHP_RINIT_FUNCTION(apd)
 	APD_GLOBALS(output).enter_function = apd_pprof_output_enter_function;
 	APD_GLOBALS(output).exit_function = apd_pprof_output_exit_function;
 
+	APD_GLOBALS(pproftrace) = 0;
+	APD_GLOBALS(pprof_file) = NULL;
 	APD_GLOBALS(dump_file) = stderr;
 	APD_GLOBALS(dump_sock_id) = 0;
 	APD_GLOBALS(interactive_mode) = 0;
@@ -594,8 +580,8 @@ PHP_RSHUTDOWN_FUNCTION(apd)
 		APD_GLOBALS(dump_sock_id)=0;
 	}
 
-	zend_hash_clean(APD_GLOBALS(function_summary));
-	zend_hash_clean(APD_GLOBALS(file_summary));
+	zend_hash_clean(&APD_GLOBALS(function_summary));
+	zend_hash_clean(&APD_GLOBALS(file_summary));
 	APD_GLOBALS(counter)++;
 	return SUCCESS;
 }
@@ -735,11 +721,11 @@ void apd_pprof_header(char *ent_fname TSRMLS_DC) {
 
 	fnum = (int *) emalloc(sizeof(int));
 	*fnum = APD_GLOBALS(function_index)++;
-	zend_hash_add(APD_GLOBALS(function_summary), fname, strlen(fname)+1, fnum, sizeof(int), NULL);
+	zend_hash_add(&APD_GLOBALS(function_summary), fname, strlen(fname)+1, fnum, sizeof(int), NULL);
 
 	filenum = (int *) emalloc(sizeof(int));
 	*filenum = APD_GLOBALS(file_index)++;
-	zend_hash_add(APD_GLOBALS(file_summary), (char *) filename, strlen(filename)+1, filenum, sizeof(int), NULL);
+	zend_hash_add(&APD_GLOBALS(file_summary), (char *) filename, strlen(filename)+1, filenum, sizeof(int), NULL);
 
 	APD_GLOBALS(output).file_reference(*filenum, filename);
 	APD_GLOBALS(output).declare_function(*fnum, fname, ZEND_USER_FUNCTION);
@@ -747,7 +733,7 @@ void apd_pprof_header(char *ent_fname TSRMLS_DC) {
 
 	fnum = (int *) emalloc(sizeof(int));
 	*fnum = APD_GLOBALS(function_index)++;
-	zend_hash_add(APD_GLOBALS(function_summary), ent_fname, strlen(ent_fname)+1, fnum, sizeof(int), NULL);
+	zend_hash_add(&APD_GLOBALS(function_summary), ent_fname, strlen(ent_fname)+1, fnum, sizeof(int), NULL);
 
 	APD_GLOBALS(output).declare_function(*fnum, ent_fname, ZEND_USER_FUNCTION);
 	APD_GLOBALS(output).enter_function(*fnum, *filenum,  linenum);

@@ -173,8 +173,8 @@ typedef struct {
 ZEND_BEGIN_MODULE_GLOBALS(apd)
 	int counter;
 	void* stack;
-	HashTable* function_summary;
-	HashTable* file_summary;
+	HashTable function_summary;
+	HashTable file_summary;
 	char* dumpdir; /* directory for dumping seesion traces to */
 	FILE* dump_file; /* FILE for dumping session traces to */
 	FILE* pprof_file; /* File for profiling output */
