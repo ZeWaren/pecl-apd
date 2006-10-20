@@ -483,9 +483,14 @@ PHP_INI_END()
    Module Startup and Shutdown Function Definitions
    --------------------------------------------------------------------------- */
 
+static void php_apd_init_globals(zend_apd_globals *apd_globals)
+{
+    memset(apd_globals, 0, sizeof(apd_globals));
+}
+
 PHP_MINIT_FUNCTION(apd)
 {
-	ZEND_INIT_MODULE_GLOBALS(apd, NULL, NULL)
+	ZEND_INIT_MODULE_GLOBALS(apd, php_apd_init_globals, NULL)
 	REGISTER_INI_ENTRIES();
 	old_execute = zend_execute;
 	zend_execute = apd_execute;
@@ -505,7 +510,7 @@ ZEND_API void apd_execute(zend_op_array *op_array TSRMLS_DC)
   	fname = apd_get_active_function_name(op_array TSRMLS_CC);
    	trace_function_entry(EG(function_table), fname, ZEND_USER_FUNCTION,
 						zend_get_executed_filename(TSRMLS_C),
-						zend_get_executed_lineno(TSRMLS_C));
+						(EG(opline_ptr) && *(EG(opline_ptr)))?zend_get_executed_lineno(TSRMLS_C):0);
    	old_execute(op_array TSRMLS_CC);
    	trace_function_exit(fname);
    	efree(fname);
@@ -525,7 +530,7 @@ ZEND_API void apd_execute_internal(zend_execute_data *execute_data_ptr, int retu
    	fname = apd_get_active_function_name(execd->op_array TSRMLS_CC);
    	trace_function_entry(EG(function_table), fname, ZEND_INTERNAL_FUNCTION,
 						zend_get_executed_filename(TSRMLS_C),
-						zend_get_executed_lineno(TSRMLS_C));
+						(EG(opline_ptr) && *(EG(opline_ptr)))?zend_get_executed_lineno(TSRMLS_C):0);
 	execute_internal(execute_data_ptr, return_value_used TSRMLS_CC);
 	trace_function_exit(fname);
 	efree(fname);
@@ -717,7 +722,7 @@ void apd_pprof_header(char *ent_fname TSRMLS_DC) {
 	APD_GLOBALS(output).header();
 
 	filename = zend_get_executed_filename(TSRMLS_C);
-	linenum = zend_get_executed_lineno(TSRMLS_C);
+	linenum = (EG(opline_ptr) && *(EG(opline_ptr)))?zend_get_executed_lineno(TSRMLS_C):0;
 
 	fnum = (int *) emalloc(sizeof(int));
 	*fnum = APD_GLOBALS(function_index)++;
@@ -763,43 +768,21 @@ PHP_FUNCTION(apd_set_pprof_trace)
 	int issock =0;
 	int socketd = 0;
 	int path_len;
-	char *dumpdir;
+	char *dumpdir = NULL, *fragment = "pprof";
+	int dumpdirlen, fragmentlen;
 	char path[MAXPATHLEN];
-	zval  **z_dumpdir;
 
-	if(ZEND_NUM_ARGS() > 1 )
-		{
-			ZEND_WRONG_PARAM_COUNT();
-		}
-	if(ZEND_NUM_ARGS() == 0)
-		{
-			if(APD_GLOBALS(dumpdir)) {
-				dumpdir = APD_GLOBALS(dumpdir);
-			}
-			else {
-				zend_error(E_WARNING, "%s() no dumpdir specified",
-						   get_active_function_name(TSRMLS_C));
-				RETURN_FALSE;
-			}
-			APD_GLOBALS(pproftrace) = 1;
-		}
-	else {
-		if(zend_get_parameters_ex(1, &z_dumpdir) == FAILURE)
-			{
-				ZEND_WRONG_PARAM_COUNT();
-			}
-		APD_GLOBALS(pproftrace) = 1;
-
-		convert_to_string_ex(z_dumpdir);
-		dumpdir = Z_STRVAL_PP(z_dumpdir);
+	dumpdir = APD_GLOBALS(dumpdir);
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ss", &dumpdir, &dumpdirlen, &fragment, &fragmentlen) == FAILURE) {
+		return;
 	}
-	
-	snprintf(path, MAXPATHLEN, "%s/pprof.%05d.%d", dumpdir, getpid(), APD_GLOBALS(counter));
+	APD_GLOBALS(pproftrace) = 1;
+	snprintf(path, MAXPATHLEN, "%s/%s.%05d.%d", dumpdir, fragment, getpid(), APD_GLOBALS(counter));
 	if((APD_GLOBALS(pprof_file) = fopen(path, "a")) == NULL) {
 		zend_error(E_ERROR, "%s() failed to open %s for tracing", get_active_function_name(TSRMLS_C), path);
 	}  
-
 	apd_pprof_header("apd_set_pprof_trace" TSRMLS_CC);
+	RETURN_STRING(path, 1);
 }  
 
 
