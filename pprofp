@@ -30,22 +30,34 @@ $stotal = 0;
 $utotal = 0;
 $last_memory = 0;
 $symbol_type = array();
+$num = 0;
 
 ($dataFile = $retval[1][0]) || usage();
+$count = $retval[1][1];
+if(!$count) { $count = 20; }
+
 
 if(is_file($dataFile)) {
+  $num++;
   parse_profile($dataFile);
 }
 else if(is_dir($dataFile)) {
+     $files = array();
      if ($dh = opendir($dataFile)) {
        while (($file = readdir($dh)) !== false) {
            $path = "$dataFile/$file";
            if(is_file($path)) {
-               echo "Processing $path\n";
-               parse_profile($path);
+               $files[] = $path;
            }
        }
        closedir($dh);
+       shuffle($files);
+       foreach($files as $path) {
+           if($count-- == 0) break;
+           echo "Processing $path\n";
+           $num++;
+           parse_profile($path);
+       }
    }
 } 
 else {
@@ -55,6 +67,7 @@ else {
 
 function parse_profile($dataFile) {
     global $cfg;
+    global $opt;
     global $calls;
     global $mem;
     global $c_rtimes;
@@ -108,10 +121,12 @@ function parse_profile($dataFile) {
                 if(array_key_exists('c', $opt)) {
                     printf("%2.02f ", $rtotal/1000000);
                 }
-                print str_repeat("  ", $indent_cur).$symbol_hash[$index_cur]."\n";
+                print str_repeat("  ", $indent_cur).$symbol_hash[$index_cur];
     	    if(array_key_exists('m', $opt)) {
-    		print str_repeat("  ", $indent_cur)."C: $file_hash[$file]:$line M: $memory\n";
-    	    }
+    		print " C: $file_hash[$file]:$line\n";
+    	    } else {
+                print "\n";
+            }
     	}
             elseif(array_key_exists('t', $opt)) {
                 if ( $indent_last == $indent_cur && $index_last == $index_cur ) {
@@ -202,7 +217,7 @@ printf("
 Total Elapsed Time = %4.2f
 Total System Time  = %4.2f
 Total User Time    = %4.2f
-", $rtotal/1000000, $stotal/1000000, $utotal/1000000);
+", $rtotal/(1000000 * $num), $stotal/(1000000 * $num), $utotal/(1000000 * $num));
 print "\n
          Real         User        System             secs/    cumm
 %Time (excl/cumm)  (excl/cumm)  (excl/cumm) Calls    call    s/call  Memory Usage Name
@@ -220,13 +235,13 @@ foreach (array_keys($calls) as $j) {
     if ($l++ <  $opt['O']) {
         $pcnt = 100*($stimes[$j] + $utimes[$j])/($utotal + $stotal + $itotal);
         $c_pcnt = 100* ($c_stimes[$j] + $c_utimes[$j])/($utotal + $stotal + $itotal);
-        $rsecs = $rtimes[$j]/1000000;
-        $ssecs = $stimes[$j]/1000000;
-        $usecs = $utimes[$j]/1000000;
-        $c_rsecs = $c_rtimes[$j]/1000000;
-        $c_ssecs = $c_stimes[$j]/1000000;
-        $c_usecs = $c_utimes[$j]/1000000;
-        $ncalls = $calls[$j];
+        $rsecs = $rtimes[$j]/(1000000 * $num);
+        $ssecs = $stimes[$j]/(1000000 * $num);
+        $usecs = $utimes[$j]/(1000000 * $num);
+        $c_rsecs = $c_rtimes[$j]/(1000000 * $num);
+        $c_ssecs = $c_stimes[$j]/(1000000 * $num);
+        $c_usecs = $c_utimes[$j]/(1000000 * $num);
+        $ncalls = $calls[$j]/$num;
 	if(array_key_exists('z', $opt)) {
         	$percall = ($usecs + $ssecs)/$ncalls;
 	        $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
@@ -262,7 +277,6 @@ foreach (array_keys($calls) as $j) {
 	        $cpercall = ($c_rsecs)/$ncalls;
                 if($rtotal) {
 		    $pcnt = 100*$c_rtimes[$j]/$rtotal;
-print "require_once: $rtotal $c_rtimes[require_once]\n";
                 }
                 else {
                     $pcnt = 100;
