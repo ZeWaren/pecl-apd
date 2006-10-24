@@ -5,12 +5,13 @@ error_reporting(0);
 $con = new Console_Getopt;
 $args = $con->readPHPArgv();
 array_shift($args);
-$shortoptions = 'acg:hiIlmMrRsStTuUO:vzZ';
+$shortoptions = 'aC:cg:hiIlmMrRsStTuUO:vXzZ';
 $retval = $con->getopt( $args, $shortoptions);
 if(is_object($retval)) {
     usage();
 }
 $opt['O'] = 20;
+$opt['C'] = 20;
 foreach ($retval[0] as $kv_array) {
     $opt[$kv_array[0]] = $kv_array[1];
 }
@@ -29,40 +30,24 @@ $rtotal = 0;
 $stotal = 0;
 $utotal = 0;
 $last_memory = 0;
+$count = $opt['C'];
 $symbol_type = array();
 $num = 0;
 
-($dataFile = $retval[1][0]) || usage();
-$count = $retval[1][1];
-if(!$count) { $count = 20; }
-
-
-if(is_file($dataFile)) {
-  $num++;
-  parse_profile($dataFile);
+if(!$retval[1]) {
+  usage();
 }
-else if(is_dir($dataFile)) {
-     $files = array();
-     if ($dh = opendir($dataFile)) {
-       while (($file = readdir($dh)) !== false) {
-           $path = "$dataFile/$file";
-           if(is_file($path)) {
-               $files[] = $path;
-           }
-       }
-       closedir($dh);
-       shuffle($files);
-       foreach($files as $path) {
-           if($count-- == 0) break;
-           echo "Processing $path\n";
-           $num++;
-           parse_profile($path);
-       }
-   }
-} 
-else {
-    echo "$dataFile is neither a file nor a directory\n";
-    exit(-1);
+
+$files = array();
+foreach($retval[1] as $f) {
+  $files = array_merge($files, find_files($f));
+}
+shuffle($files);
+foreach($files as $path) {
+  if($count-- == 0) break;
+  if(array_key_exists('v', $opt)) { echo "Processing $path\n"; }
+  $num++;
+  parse_profile($path);
 }
 
 function parse_profile($dataFile) {
@@ -99,21 +84,21 @@ function parse_profile($dataFile) {
         }
         list($token, $data) = preg_split("/ /",$line, 2);
         if($token == '!') {
-    	list ($index, $file) = preg_split("/ /", $data, 2);
-    	$file_hash[$index] = $file;
-    	continue;
+      list ($index, $file) = preg_split("/ /", $data, 2);
+      $file_hash[$index] = $file;
+      continue;
         }
         if( $token == '&') {
             list ($index, $name, $type) = preg_split("/ /", $data, 3);
             $symbol_hash[$index] = $name;
-    	$symbol_type[$symbol_hash[$index]] = $type;
+      $symbol_type[$symbol_hash[$index]] = $type;
             continue;
         }
         if( $token == '+') {
             list($index, $file, $line) = preg_split("/ /",$data, 3);
             if(array_key_exists('i',$opt) && $symbol_type[$symbol_hash[$index]] == 1) {
                 continue;
-            }	
+            } 
             $index_cur = $index;
             $calls[$symbol_hash[$index_cur]]++;
             array_push($callstack, $index_cur);
@@ -122,12 +107,12 @@ function parse_profile($dataFile) {
                     printf("%2.02f ", $rtotal/1000000);
                 }
                 print str_repeat("  ", $indent_cur).$symbol_hash[$index_cur];
-    	    if(array_key_exists('m', $opt)) {
-    		print " C: $file_hash[$file]:$line\n";
-    	    } else {
+          if(array_key_exists('m', $opt)) {
+        print " C: $file_hash[$file]:$line\n";
+          } else {
                 print "\n";
             }
-    	}
+      }
             elseif(array_key_exists('t', $opt)) {
                 if ( $indent_last == $indent_cur && $index_last == $index_cur ) {
                     $repcnt++;
@@ -140,15 +125,15 @@ function parse_profile($dataFile) {
                         printf("%2.02f ", $rtotal/1000000);
                     }
                     print str_repeat("  ", $indent_last).$symbol_hash[$index_last].$repstr."\n";
-    		if(array_key_exists('m', $opt)) {
-    		   print str_repeat("  ", $indent_cur)."C: $file_hash[$file_last]:$line_last M: $memory\n";
-    		}
+        if(array_key_exists('m', $opt)) {
+           print str_repeat("  ", $indent_cur)."C: $file_hash[$file_last]:$line_last M: $memory\n";
+        }
                     $repstr = '';
                     $repcnt = 0;
                     $index_last = $index_cur;
                     $indent_last = $indent_cur;
-    		$file_last = $file;
-    		$line_last = $line;
+        $file_last = $file;
+        $line_last = $line;
                 }
             }
             $indent_cur++;
@@ -193,7 +178,6 @@ $sort = 'by_time';
 if(array_key_exists('l', $opt)) { $sort = 'by_calls'; }
 if(array_key_exists('m', $opt)) { $sort = 'by_mem'; }
 if(array_key_exists('a', $opt)) { $sort = 'by_name'; }
-if(array_key_exists('v', $opt)) { $sort = 'by_avgcpu'; }
 if(array_key_exists('r', $opt)) { $sort = 'by_rtime'; }
 if(array_key_exists('R', $opt)) { $sort = 'by_c_rtime'; }
 if(array_key_exists('s', $opt)) { $sort = 'by_stime'; }
@@ -205,130 +189,242 @@ if( !count($calls)) {
     continue;
 }
 
-print "Trace for:\n";
-foreach($cfg['caller'] as $file => $count) {
-    if($count > 1) {
-        print "\t$file (x$count)\n";
-    } else {
-        print "\t$file\n";
-    }
-}
-printf("
-Total Elapsed Time = %4.2f
-Total System Time  = %4.2f
-Total User Time    = %4.2f
-", $rtotal/(1000000 * $num), $stotal/(1000000 * $num), $utotal/(1000000 * $num));
-print "\n
-         Real         User        System             secs/    cumm
-%Time (excl/cumm)  (excl/cumm)  (excl/cumm) Calls    call    s/call  Memory Usage Name
---------------------------------------------------------------------------------------\n";
-$l = 0;
-$itotal = 0;
-$percall = 0;
-$cpercall = 0;
+if(array_key_exists('X', $opt)) {
+  print "name,pcnt,real time, excl user+sys, cumm user+sys, sec/call, calls\n";
+  $l = 0;
+  $itotal = 0;
+  $percall = 0;
+  $cpercall = 0;
 
-uksort($calls, $sort);
-foreach (array_keys($calls) as $j) {
+  uksort($calls, $sort);
+  foreach (array_keys($calls) as $j) {
     if(array_key_exists('i', $opt) && $symbol_type[$j] == 1) {
-        continue;
+      continue;
     }
     if ($l++ <  $opt['O']) {
-        $pcnt = 100*($stimes[$j] + $utimes[$j])/($utotal + $stotal + $itotal);
-        $c_pcnt = 100* ($c_stimes[$j] + $c_utimes[$j])/($utotal + $stotal + $itotal);
-        $rsecs = $rtimes[$j]/(1000000 * $num);
-        $ssecs = $stimes[$j]/(1000000 * $num);
-        $usecs = $utimes[$j]/(1000000 * $num);
-        $c_rsecs = $c_rtimes[$j]/(1000000 * $num);
-        $c_ssecs = $c_stimes[$j]/(1000000 * $num);
-        $c_usecs = $c_utimes[$j]/(1000000 * $num);
-        $ncalls = $calls[$j]/$num;
-	if(array_key_exists('z', $opt)) {
-        	$percall = ($usecs + $ssecs)/$ncalls;
-	        $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
-                if($utotal + $stotal) {
-		    $pcnt = 100*($stimes[$j] + $utimes[$j])/($utotal + $stotal);
-                }
-                else {
-                    $pcnt = 100;
-                }
-	}
-	if(array_key_exists('Z', $opt)) {
-        	$percall = ($usecs + $ssecs)/$ncalls;
-	        $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
-                if($utotal + $stotal) {
-		    $pcnt = 100*($c_stimes[$j] + $c_utimes[$j])/($utotal + $stotal);
-                }
-                else {
-                    $pcnt = 100;
-                }
-	}
-	if(array_key_exists('r', $opt)) {
-        	$percall = ($rsecs)/$ncalls;
-	        $cpercall = ($c_rsecs)/$ncalls;
-                if($rtotal) {
-		    $pcnt = 100*$rtimes[$j]/$rtotal;
-                }
-                else {
-                    $pcnt = 100;
-                }
-	}
-	if(array_key_exists('R', $opt)) {
-        	$percall = ($rsecs)/$ncalls;
-	        $cpercall = ($c_rsecs)/$ncalls;
-                if($rtotal) {
-		    $pcnt = 100*$c_rtimes[$j]/$rtotal;
-                }
-                else {
-                    $pcnt = 100;
-                }
-	}
-	if(array_key_exists('u', $opt)) {
-        	$percall = ($usecs)/$ncalls;
-	        $cpercall = ($c_usecs)/$ncalls;
-                if($utotal) {
-		    $pcnt = 100*$utimes[$j]/$utotal;
-                } 
-                else {
-                    $pcnt = 100;
-                }
-	}
-	if(array_key_exists('U', $opt)) {
-        	$percall = ($usecs)/$ncalls;
-	        $cpercall = ($c_usecs)/$ncalls;
-                if($utotal) {
-		    $pcnt = 100*$c_utimes[$j]/$utotal;
-                }
-                else {
-                    $pcnt = 100;
-                }
-	}
-	if(array_key_exists('s', $opt)) {
-        	$percall = ($ssecs)/$ncalls;
-	        $cpercall = ($c_ssecs)/$ncalls;
-                if($stotal) {
-		    $pcnt = 100*$stimes[$j]/$stotal;
-                }
-                else {
-                    $pcnt = 100;
-                }
-	}
-	if(array_key_exists('S', $opt)) {
-        	$percall = ($ssecs)/$ncalls;
-	        $cpercall = ($c_ssecs)/$ncalls;
-                if($stotal) {
-		    $pcnt = 100*$c_stimes[$j]/$stotal;
-                }
-                else {
-                    $pcnt = 100;
-                }
-	}
-//        $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
-        $mem_usage = $mem[$j];
-        $name = $j;
-        printf("%3.01f %2.02f %2.02f  %2.02f %2.02f  %2.02f %2.02f  %4d  %2.04f   %2.04f %12d %s\n", $pcnt, $rsecs, $c_rsecs, $usecs, $c_usecs, $ssecs, $c_ssecs, $ncalls, $percall, $cpercall, $mem_usage, $name);
+      $pcnt = 100*($stimes[$j] + $utimes[$j])/($utotal + $stotal + $itotal);
+      $c_pcnt = 100* ($c_stimes[$j] + $c_utimes[$j])/($utotal + $stotal + $itotal);
+      $rsecs = $rtimes[$j]/(1000000 * $num);
+      $ssecs = $stimes[$j]/(1000000 * $num);
+      $usecs = $utimes[$j]/(1000000 * $num);
+      $c_rsecs = $c_rtimes[$j]/(1000000 * $num);
+      $c_ssecs = $c_stimes[$j]/(1000000 * $num);
+      $c_usecs = $c_utimes[$j]/(1000000 * $num);
+      $ncalls = $calls[$j]/$num;
+      if(array_key_exists('z', $opt)) {
+        $percall = ($usecs + $ssecs)/$ncalls;
+        $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
+        if($utotal + $stotal) {
+          $pcnt = 100*($stimes[$j] + $utimes[$j])/($utotal + $stotal);
+        }
+        else {
+          $pcnt = 100;
+        }
+      }
+      if(array_key_exists('Z', $opt)) {
+        $percall = ($usecs + $ssecs)/$ncalls;
+        $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
+        if($utotal + $stotal) {
+          $pcnt = 100*($c_stimes[$j] + $c_utimes[$j])/($utotal + $stotal);
+        }
+        else {
+          $pcnt = 100;
+        }
+      }
+      if(array_key_exists('r', $opt)) {
+        $percall = ($rsecs)/$ncalls;
+        $cpercall = ($c_rsecs)/$ncalls;
+        if($rtotal) {
+          $pcnt = 100*$rtimes[$j]/$rtotal;
+        }
+        else {
+          $pcnt = 100;
+        }
+      }
+      if(array_key_exists('R', $opt)) {
+        $percall = ($rsecs)/$ncalls;
+        $cpercall = ($c_rsecs)/$ncalls;
+        if($rtotal) {
+          $pcnt = 100*$c_rtimes[$j]/$rtotal;
+        }
+        else {
+          $pcnt = 100;
+        }
+      }
+      if(array_key_exists('u', $opt)) {
+        $percall = ($usecs)/$ncalls;
+        $cpercall = ($c_usecs)/$ncalls;
+        if($utotal) {
+          $pcnt = 100*$utimes[$j]/$utotal;
+        } 
+        else {
+          $pcnt = 100;
+        }
+      }
+      if(array_key_exists('U', $opt)) {
+        $percall = ($usecs)/$ncalls;
+        $cpercall = ($c_usecs)/$ncalls;
+        if($utotal) {
+          $pcnt = 100*$c_utimes[$j]/$utotal;
+        }
+        else {
+          $pcnt = 100;
+        }
+      }
+      if(array_key_exists('s', $opt)) {
+        $percall = ($ssecs)/$ncalls;
+        $cpercall = ($c_ssecs)/$ncalls;
+        if($stotal) {
+          $pcnt = 100*$stimes[$j]/$stotal;
+        }
+        else {
+          $pcnt = 100;
+        }
+      }
+      if(array_key_exists('S', $opt)) {
+        $percall = ($ssecs)/$ncalls;
+        $cpercall = ($c_ssecs)/$ncalls;
+        if($stotal) {
+          $pcnt = 100*$c_stimes[$j]/$stotal;
+        }
+        else {
+          $pcnt = 100;
+        }
+      }
+      //        $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
+      $mem_usage = $mem[$j];
+      $name = $j;
+      $zsecs = $usecs + $ssecs;
+      $c_zsecs = $c_usecs + $c_ssecs;
+      print "$name,$pcnt,$rsecs,$c_rsecs,$zsecs,$c_zsecs,$percall,$ncalls\n";
     }
-}
+  }
+} else {
+  print "Trace for:\n";
+  foreach($cfg['caller'] as $file => $count) {
+    if($count > 1) {
+      print "\t$file (x$count)\n";
+    } else {
+      print "\t$file\n";
+    }
+  }
+  printf("
+==
+      Total Elapsed Time = %4.2f
+      Total System Time  = %4.2f
+      Total User Time    = %4.2f
+      ", $rtotal/(1000000 * $num), $stotal/(1000000 * $num), $utotal/(1000000 * $num));
+  print "\n
+    Real         User        System             secs/    cumm
+    %Time (excl/cumm)  (excl/cumm)  (excl/cumm) Calls    call    s/call  Memory Usage Name
+    --------------------------------------------------------------------------------------\n";
+  $l = 0;
+  $itotal = 0;
+  $percall = 0;
+  $cpercall = 0;
 
+  uksort($calls, $sort);
+  foreach (array_keys($calls) as $j) {
+    if(array_key_exists('i', $opt) && $symbol_type[$j] == 1) {
+      continue;
+    }
+    if ($l++ <  $opt['O']) {
+      $pcnt = 100*($stimes[$j] + $utimes[$j])/($utotal + $stotal + $itotal);
+      $c_pcnt = 100* ($c_stimes[$j] + $c_utimes[$j])/($utotal + $stotal + $itotal);
+      $rsecs = $rtimes[$j]/(1000000 * $num);
+      $ssecs = $stimes[$j]/(1000000 * $num);
+      $usecs = $utimes[$j]/(1000000 * $num);
+      $c_rsecs = $c_rtimes[$j]/(1000000 * $num);
+      $c_ssecs = $c_stimes[$j]/(1000000 * $num);
+      $c_usecs = $c_utimes[$j]/(1000000 * $num);
+      $ncalls = $calls[$j]/$num;
+      if(array_key_exists('z', $opt)) {
+        $percall = ($usecs + $ssecs)/$ncalls;
+        $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
+        if($utotal + $stotal) {
+          $pcnt = 100*($stimes[$j] + $utimes[$j])/($utotal + $stotal);
+        }
+        else {
+          $pcnt = 100;
+        }
+      }
+      if(array_key_exists('Z', $opt)) {
+        $percall = ($usecs + $ssecs)/$ncalls;
+        $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
+        if($utotal + $stotal) {
+          $pcnt = 100*($c_stimes[$j] + $c_utimes[$j])/($utotal + $stotal);
+        }
+        else {
+          $pcnt = 100;
+        }
+      }
+      if(array_key_exists('r', $opt)) {
+        $percall = ($rsecs)/$ncalls;
+        $cpercall = ($c_rsecs)/$ncalls;
+        if($rtotal) {
+          $pcnt = 100*$rtimes[$j]/$rtotal;
+        }
+        else {
+          $pcnt = 100;
+        }
+      }
+      if(array_key_exists('R', $opt)) {
+        $percall = ($rsecs)/$ncalls;
+        $cpercall = ($c_rsecs)/$ncalls;
+        if($rtotal) {
+          $pcnt = 100*$c_rtimes[$j]/$rtotal;
+        }
+        else {
+          $pcnt = 100;
+        }
+      }
+      if(array_key_exists('u', $opt)) {
+        $percall = ($usecs)/$ncalls;
+        $cpercall = ($c_usecs)/$ncalls;
+        if($utotal) {
+          $pcnt = 100*$utimes[$j]/$utotal;
+        } 
+        else {
+          $pcnt = 100;
+        }
+      }
+      if(array_key_exists('U', $opt)) {
+        $percall = ($usecs)/$ncalls;
+        $cpercall = ($c_usecs)/$ncalls;
+        if($utotal) {
+          $pcnt = 100*$c_utimes[$j]/$utotal;
+        }
+        else {
+          $pcnt = 100;
+        }
+      }
+      if(array_key_exists('s', $opt)) {
+        $percall = ($ssecs)/$ncalls;
+        $cpercall = ($c_ssecs)/$ncalls;
+        if($stotal) {
+          $pcnt = 100*$stimes[$j]/$stotal;
+        }
+        else {
+          $pcnt = 100;
+        }
+      }
+      if(array_key_exists('S', $opt)) {
+        $percall = ($ssecs)/$ncalls;
+        $cpercall = ($c_ssecs)/$ncalls;
+        if($stotal) {
+          $pcnt = 100*$c_stimes[$j]/$stotal;
+        }
+        else {
+          $pcnt = 100;
+        }
+      }
+      //        $cpercall = ($c_usecs + $c_ssecs)/$ncalls;
+      $mem_usage = $mem[$j];
+      $name = $j;
+      printf("%3.01f %2.02f %2.02f  %2.02f %2.02f  %2.02f %2.02f  %4d  %2.04f   %2.04f %12d %s\n", $pcnt, $rsecs, $c_rsecs, $usecs, $c_usecs, $ssecs, $c_ssecs, $ncalls, $percall, $cpercall, $mem_usage, $name);
+    }
+  }
+}
 
 function usage() {
 print <<<EOD
@@ -343,7 +439,6 @@ pprofp <flags> <trace file>
     -S          Sort by system time spent in subroutines (inclusive of child calls).
     -u          Sort by user time spent in subroutines.
     -U          Sort by user time spent in subroutines (inclusive of child calls).
-    -v          Sort by average amount of time spent in subroutines.
     -z          Sort by user+system time spent in subroutines. (default)
 
     Display options
@@ -352,6 +447,7 @@ pprofp <flags> <trace file>
     -O <cnt>    Specifies maximum number of subroutines to display. (default 15)
     -t          Display compressed call tree.
     -T          Display uncompressed call tree.
+    -v          Be verbose.
 
 EOD;
     exit(1);
@@ -409,5 +505,33 @@ function by_c_stime($a,$b) { global $c_stimes; return num_cmp($c_stimes[$b], $c_
 function by_utime($a,$b) { global $utimes; return num_cmp($utimes[$b], $utimes[$a]); }
 function by_c_utime($a,$b) { global $c_utimes; return num_cmp($c_utimes[$b], $c_utimes[$a]); }
 function by_mem($a, $b) { global $mem; return num_cmp($mem[$b], $mem[$a]); }
-    
+
+function find_files($dataFile) {
+  if(is_file($dataFile)) {
+    return array($dataFile);
+  }
+  else if(is_dir($dataFile)) {
+    $output = array();
+    if ($dh = opendir($dataFile)) {
+      while (($file = readdir($dh)) !== false) {
+        if($file != '.' && $file != '..') {
+          $path = "$dataFile/$file";
+          $output = array_merge($output, find_files($path));
+        }
+      }
+      closedir($dh);
+      return $output;
+    }
+  }  else {
+    print "Warning - can't use $dataFile\n"; 
+    return array();
+  }
+}
+
+function stuff2($dataFile, $limit = 0) {
+  $files = find_files($dataFile, $limit);
+  var_dump($files);
+  exit;
+}
+
 ?>
