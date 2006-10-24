@@ -510,7 +510,7 @@ ZEND_API void apd_execute(zend_op_array *op_array TSRMLS_DC)
   	fname = apd_get_active_function_name(op_array TSRMLS_CC);
    	trace_function_entry(EG(function_table), fname, ZEND_USER_FUNCTION,
 						zend_get_executed_filename(TSRMLS_C),
-						(EG(opline_ptr) && *(EG(opline_ptr)))?zend_get_executed_lineno(TSRMLS_C):0);
+						EG(in_execution)?zend_get_executed_lineno(TSRMLS_C):0);
    	old_execute(op_array TSRMLS_CC);
    	trace_function_exit(fname);
    	efree(fname);
@@ -530,7 +530,7 @@ ZEND_API void apd_execute_internal(zend_execute_data *execute_data_ptr, int retu
    	fname = apd_get_active_function_name(execd->op_array TSRMLS_CC);
    	trace_function_entry(EG(function_table), fname, ZEND_INTERNAL_FUNCTION,
 						zend_get_executed_filename(TSRMLS_C),
-						(EG(opline_ptr) && *(EG(opline_ptr)))?zend_get_executed_lineno(TSRMLS_C):0);
+						EG(in_execution)?zend_get_executed_lineno(TSRMLS_C):0);
 	execute_internal(execute_data_ptr, return_value_used TSRMLS_CC);
 	trace_function_exit(fname);
 	efree(fname);
@@ -722,7 +722,7 @@ void apd_pprof_header(char *ent_fname TSRMLS_DC) {
 	APD_GLOBALS(output).header();
 
 	filename = zend_get_executed_filename(TSRMLS_C);
-	linenum = (EG(opline_ptr) && *(EG(opline_ptr)))?zend_get_executed_lineno(TSRMLS_C):0;
+	linenum = EG(in_execution)?zend_get_executed_lineno(TSRMLS_C):0;
 
 	fnum = (int *) emalloc(sizeof(int));
 	*fnum = APD_GLOBALS(function_index)++;
