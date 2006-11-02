@@ -183,6 +183,7 @@ ZEND_BEGIN_MODULE_GLOBALS(apd)
 	struct timeval last_clock;
 	struct rusage first_ru;
 	struct rusage last_ru;
+	long entry_memory_usage;
 	int function_index;                /* current index of functions for pprof tracing */
 	int file_index;                /* current index of functions for pprof tracing */
 	int current_file_index;

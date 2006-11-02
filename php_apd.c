@@ -393,8 +393,14 @@ static void trace_function_exit(char *fname)
 		return;
 	}
 
+#if PHP_MAJOR_VERSION == 5
+#if PHP_MINOR_VERSION < 2
 #if MEMORY_LIMIT
 	allocated = AG(memory_limit);
+#endif
+#else
+	allocated = zend_memory_usage(0) - APD_GLOBALS(entry_memory_usage);
+#endif
 #endif
 	log_time(TSRMLS_C);	
 	if (zend_hash_find(&APD_GLOBALS(function_summary), fname, strlen(fname) + 1, (void *) &function_index) == SUCCESS) {
@@ -557,6 +563,7 @@ PHP_RINIT_FUNCTION(apd)
 	APD_GLOBALS(dump_sock_id) = 0;
 	APD_GLOBALS(interactive_mode) = 0;
 	APD_GLOBALS(ignore_interactive) = 0;  
+	APD_GLOBALS(entry_memory_usage) = 0;
 	gettimeofday(&APD_GLOBALS(last_clock), NULL);
 	getrusage(RUSAGE_SELF, &APD_GLOBALS(last_ru));
 	APD_GLOBALS(first_ru) = APD_GLOBALS(last_ru);

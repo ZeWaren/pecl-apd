@@ -29,7 +29,6 @@ $utimes = array();
 $rtotal = 0;
 $stotal = 0;
 $utotal = 0;
-$last_memory = 0;
 $count = $opt['C'];
 $symbol_type = array();
 $num = 0;
@@ -64,7 +63,6 @@ function parse_profile($dataFile) {
     global $rtotal;
     global $stotal;
     global $utotal;
-    global $last_memory;
     global $symbol_type;
 
     $symbol_hash = array();
@@ -162,8 +160,7 @@ function parse_profile($dataFile) {
             {
                 continue;
             }
-            $mem[$symbol_hash[$index]] += ($memory - $last_memory);
-            $last_memory = $memory;
+            $mem[$symbol_hash[$index]] += $memory;
             $indent_cur--;
             $tmp = array_pop($callstack);
             continue;
