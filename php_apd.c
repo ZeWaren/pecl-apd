@@ -399,7 +399,7 @@ static void trace_function_exit(char *fname)
 	allocated = AG(memory_limit);
 #endif
 #else
-	allocated = zend_memory_usage(0) - APD_GLOBALS(entry_memory_usage);
+	allocated = zend_memory_usage(0 TSRMLS_CC) - APD_GLOBALS(entry_memory_usage);
 #endif
 #endif
 	log_time(TSRMLS_C);	
