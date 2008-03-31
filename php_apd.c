@@ -455,7 +455,7 @@ zend_module_entry apd_module_entry = {
 	PHP_RINIT(apd),
 	PHP_RSHUTDOWN(apd),
 	PHP_MINFO(apd),
-	NO_VERSION_YET,	/* extension version number (string) */
+	PHP_APD_VERSION,
 	STANDARD_MODULE_PROPERTIES
 };
 
@@ -602,7 +602,7 @@ PHP_MINFO_FUNCTION(apd)
 {
 	php_info_print_table_start();
 	php_info_print_table_header(2, "Advanced PHP Debugger (APD)", "Enabled");
-	php_info_print_table_row(2, "APD Version", APD_VERSION);
+	php_info_print_table_row(2, "APD Version", PHP_APD_VERSION);
 	php_info_print_table_end();
 }
 
