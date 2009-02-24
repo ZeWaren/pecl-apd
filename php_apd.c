@@ -965,7 +965,7 @@ ZEND_EXTENSION();
 
 ZEND_DLEXPORT zend_extension zend_extension_entry = {
 	"Advanced PHP Debugger (APD)",
-	APD_VERSION,
+	PHP_APD_VERSION,
 	"George Schlossnagle",
 	"http://pear.php.net/",
 	"",
