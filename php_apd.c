@@ -76,6 +76,7 @@ function_entry apd_functions[] = {
 	PHP_FE(apd_set_pprof_trace, NULL)
 	PHP_FE(apd_set_browser_trace, NULL)
 	PHP_FE(apd_set_session_trace_socket, NULL)
+	PHP_FE(apd_stop_trace, NULL)
 	PHP_FE(apd_breakpoint, NULL)
 	PHP_FE(apd_continue, NULL)
 	PHP_FE(apd_echo, NULL)
@@ -216,6 +217,22 @@ void apd_pprof_fprintf(const char* fmt, ...)
 	efree(newStr);
 }
 
+void apd_pprof_stop(TSRMLS_D)
+{
+	if (APD_GLOBALS(pprof_file)) {
+		fclose(APD_GLOBALS(pprof_file));
+		APD_GLOBALS(pprof_file)=NULL;
+	}
+
+	if (APD_GLOBALS(dump_sock_id)) {
+		close(APD_GLOBALS(dump_sock_id));
+		APD_GLOBALS(dump_sock_id)=0;
+	}
+
+	zend_hash_clean(&APD_GLOBALS(function_summary));
+	zend_hash_clean(&APD_GLOBALS(file_summary));
+	APD_GLOBALS(counter)++;
+}
 
 /* ---------------------------------------------------------------------------------
    Interactive Mode
@@ -581,20 +598,7 @@ PHP_RINIT_FUNCTION(apd)
 
 PHP_RSHUTDOWN_FUNCTION(apd)
 {
-//	APD_GLOBALS(output).footer();
-	if (APD_GLOBALS(pprof_file)) {
-		fclose(APD_GLOBALS(pprof_file));
-	}
-
-	if (APD_GLOBALS(dump_sock_id)) {
-		close(APD_GLOBALS(dump_sock_id));
-		/* bit academic - but may as well */
-		APD_GLOBALS(dump_sock_id)=0;
-	}
-
-	zend_hash_clean(&APD_GLOBALS(function_summary));
-	zend_hash_clean(&APD_GLOBALS(file_summary));
-	APD_GLOBALS(counter)++;
+	apd_pprof_stop(TSRMLS_C);
 	return SUCCESS;
 }
 
@@ -604,6 +608,8 @@ PHP_MINFO_FUNCTION(apd)
 	php_info_print_table_header(2, "Advanced PHP Debugger (APD)", "Enabled");
 	php_info_print_table_row(2, "APD Version", PHP_APD_VERSION);
 	php_info_print_table_end();
+	
+	DISPLAY_INI_ENTRIES();
 }
 
 
@@ -772,8 +778,6 @@ PHP_FUNCTION(apd_set_browser_trace)
 
 PHP_FUNCTION(apd_set_pprof_trace)
 {
-	int issock =0;
-	int socketd = 0;
 	int path_len;
 	char *dumpdir = NULL, *fragment = "pprof";
 	int dumpdirlen, fragmentlen;
@@ -872,6 +876,16 @@ PHP_FUNCTION(apd_set_session_trace_socket)
 	}
 	apd_summary_output_header();
 	RETURN_TRUE;
+}
+
+/* }}} */
+/* {{{ proto vaid apd_stop_trace() 
+   Stop tracing prior to request shutdown*/
+
+PHP_FUNCTION(apd_stop_trace)
+{
+	apd_pprof_stop(TSRMLS_C);
+	APD_GLOBALS(pproftrace)=0;
 }
 
 /* }}} */

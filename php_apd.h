@@ -74,6 +74,7 @@ PHP_FUNCTION(rename_function);
 PHP_FUNCTION(apd_set_pprof_trace);
 PHP_FUNCTION(apd_set_browser_trace);
 PHP_FUNCTION(apd_set_session_trace_socket);
+PHP_FUNCTION(apd_stop_trace);
 
 PHP_FUNCTION(apd_breakpoint);
 PHP_FUNCTION(apd_continue);
