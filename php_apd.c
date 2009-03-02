@@ -963,7 +963,13 @@ ZEND_DLEXPORT void onStatement(zend_op_array *op_array)
 int apd_zend_startup(zend_extension *extension)
 {
 	TSRMLS_FETCH();
+	/* Only enabled extended info when it is not disabled */
+#if (PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3) || PHP_MAJOR_VERSION >= 6
+	CG(compiler_options) = CG(compiler_options) | ZEND_COMPILE_EXTENDED_INFO;
+#else
 	CG(extended_info) = 1;  /* XXX: this is ridiculous */
+#endif
+
 	return zend_startup_module(&apd_module_entry);
 }
 
