@@ -68,7 +68,7 @@ _grow_array(apd_array_t *a)
 int 
 apd_array_append(apd_array_t *a, void *ptr)
 {
-	apd_array_set(a, a->largest+1, ptr);
+	return apd_array_set(a, a->largest+1, ptr);
 }
 
 int
@@ -99,6 +99,7 @@ apd_array_set(apd_array_t *a, long index, void *ptr)
 			}
 		}
 	}
+	return 1;
 }
 
 void *

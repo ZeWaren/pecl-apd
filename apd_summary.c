@@ -21,9 +21,6 @@
 void 
 apd_summary_output_header()
 {
-	apd_file_entry_t *file_entry;
-	apd_function_entry_t *function_entry;
-	apd_fcall_t *fcall;
 	TSRMLS_FETCH();
 
 	APD_GLOBALS(summary).caller = zend_get_executed_filename(TSRMLS_C);
@@ -83,7 +80,6 @@ inline apd_fcall_t *
 find_fcall(apd_coverage_t *coverage, int filenum, int linenum)
 {
 	apd_fcall_t *fcall;
-	int i;
 
 	for (fcall = coverage->head; fcall != NULL; fcall = fcall->next) {
 		if (fcall->file == filenum && fcall->line == linenum) {
@@ -114,7 +110,6 @@ void
 apd_summary_output_enter_function(int index, int filenum, int linenum)
 {
 	apd_function_entry_t *function_entry;
-	apd_coverage_t       *coverage;
 	apd_fcall_t          *fcall;
 	TSRMLS_FETCH();
 
@@ -158,7 +153,6 @@ compare_fcall(void *e1, void *e2)
 void
 apd_summary_output_exit_function(int index, int mem)
 {
-	apd_fcall_t *fcall;
 	void *entry;
 	TSRMLS_FETCH();
 
@@ -267,15 +261,14 @@ apd_summary_output_footer(void)
 	apd_fcall_t *fcall;
 	apd_function_entry_t *function_entry;
 	apd_file_entry_t *file_entry;
-	char *shortname;
 	apd_coverage_t coverage;
 	char *ret;
-	int ret_len;
+	size_t ret_len;
 	TSRMLS_FETCH();
 
 	memset(&coverage, 0, sizeof(apd_coverage_t));
 
-	php_printf("<table border=\"1\" width=\"100%\">\n");
+	php_printf("<table border=\"1\" width=\"100%%\">\n");
 	php_printf("<tr>\n");
 	php_printf("<th>Function</th>\n");
 	php_printf("<th>File</th>\n");
@@ -303,7 +296,7 @@ apd_summary_output_footer(void)
 		php_printf("</tr>\n");
 		
 		fcall = fcall->next;
-//		efree(ret);
+/*		efree(ret);  */
 	}
 	php_printf("</table>\n");
 
