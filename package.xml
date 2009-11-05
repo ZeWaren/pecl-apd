@@ -1,129 +1,207 @@
-<?xml version="1.0" encoding="ISO-8859-1" ?>
-<!-- do not use the "Type" attribute here, that one is only for
-     generated package.xml files -->
-<package>
-    <name>apd</name>
-    <summary>A full-featured engine-level profiler/debugger</summary>
-    <description>
-APD is a full-featured profiler/debugger that is loaded as a zend_extension.  It aims to be an analog of C's gprof or Perl's Devel::DProf.
-    </description>
-    <license>PHP License</license>
-    <maintainers>
-        <maintainer>
-        <user>gschlossnagle</user>
-        <name>George Schlossnagle</name>
-        <email>george@omniti.com</email>
-        </maintainer>
-    </maintainers>
-     <release>
-        <version>1.0.1</version>
-        <date>2004-09-27</date>
-        <state>stable</state>
-        <notes>
-            Fixed crash error in pprofp.
-            Fixed crash on 64bit architectures.
-        </notes>
-    </release>
-    <filelist>
-        <dir role="src" name="/">
-            <file role="doc">LICENSE</file>
-            <file role="src">Makefile.in</file>
-            <file role="doc">README</file>
-            <file role="src">apd.dsp</file>
-            <file role="src">apd_array.c</file>
-            <file role="src">apd_array.h</file>
-            <file role="src">apd_lib.c</file>
-            <file role="src">apd_lib.h</file>
-            <file role="src">apd_summary.c</file>
-            <file role="src">build</file>
-            <file role="src">config.m4</file>
-            <file role="src">php_apd.c</file>
-            <file role="src">php_apd.h</file>
-            <file role="src">php_sockets.h</file>
-            <file role="src">php_sockets_win.h</file>
-            <file role="script">pprofp</file>
-            <file role="script">pprof2calltree</file>
-            <file role="src">win32compat.c</file>
-            <file role="src">win32compat.h</file>
-         </dir>
-     </filelist> 
-     <deps>
-         <dep type="php" rel="ge" version="5.0.0RC3-dev"/>
-     </deps>
-     <changelog>
-     <release>
-        <version>0.2</version>
-        <date>2002-10-15</date>
-        <state>stable</state>
-        <notes>
-        First release into PECL.  Previous chagelog at http://apd.communityconnect.com
-        </notes>
-      </release>
-     <release>
-        <version>0.3</version>
-        <date>2002-10-15</date>
-        <state>beta</state>
-        <notes>
-            Complete rewrite of internal to use the zend_execute function
-            pointer instead of the engine hooks for tracing.
-        </notes>
-    </release>
-     <release>
-        <version>0.3p1</version>
-        <date>2002-10-29</date>
-        <state>beta</state>
-        <notes>
-                Enabled compile on non 4.3 systems
-        </notes>
-    </release>
-     <release>
-        <version>0.3p2</version>
-        <date>2002-10-29</date>
-        <state>beta</state>
-        <notes>
-            Doc fix, minor performance improvements
-        </notes>
-    </release>
-     <release>
-        <version>0.4</version>
-        <date>2002-11-25</date>
-        <state>stable</state>
-        <notes>
-            Fixed installation of pprofp, added some memory tracing
-        </notes>
-    </release>
-     <release>
-        <version>0.9</version>
-        <date>2002-11-25</date>
-        <state>stable</state>
-        <notes>
-            Fixed build for 4.3
-        </notes>
-    </release>
-     <release>
-        <version>0.9.1</version>
-        <date>2004-07-16</date>
-        <state>stable</state>
-        <notes>
-            Fix for packaging error
-        </notes>
-    </release>
-     <release>
-        <version>0.9.2</version>
-        <date>2004-09-28</date>
-        <state>stable</state>
-        <notes>
-            Fix crash in pprofp
-            Fix crash error on 64 bit.
-        </notes>
-    </release>
-    <release>
-        <version>1.0</version>
-        <date>2004-08-20</date>
-        <state>stable</state>
-        <notes>
-            Official php5 release
-        </notes>
-    </release>
-    </changelog>  
+<?xml version="1.0" encoding="UTF-8"?>
+<package packagerversion="1.9.0" version="2.0" xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0
+http://pear.php.net/dtd/tasks-1.0.xsd
+http://pear.php.net/dtd/package-2.0
+http://pear.php.net/dtd/package-2.0.xsd">
+ <name>apd</name>
+ <channel>pecl.php.net</channel>
+ <summary>A full-featured engine-level profiler/debugger</summary>
+ <description>APD is a full-featured profiler/debugger that is loaded as a zend_extension.  It aims to be an analog of C&apos;s gprof or Perl&apos;s Devel::DProf.
+    
+ </description>
+ <lead>
+  <name>George Schlossnagle</name>
+  <user>gschlossnagle</user>
+  <email>george@omniti.com</email>
+  <active>yes</active>
+ </lead>
+ <date>2009-11-05</date>
+ <time>12:53:45</time>
+ <version>
+  <release>1.0.1</release>
+  <api>1.0.1</api>
+ </version>
+ <stability>
+  <release>stable</release>
+  <api>stable</api>
+ </stability>
+ <license uri="http://www.php.net/license">PHP License</license>
+ <notes>
+Fixed crash error in pprofp.
+Fixed crash on 64bit architectures.
+ </notes>
+ <contents>
+  <dir name="/">
+   <file name="apd.dsp" role="src" />
+   <file name="apd_array.c" role="src" />
+   <file name="apd_array.h" role="src" />
+   <file name="apd_lib.c" role="src" />
+   <file name="apd_lib.h" role="src" />
+   <file name="apd_summary.c" role="src" />
+   <file name="build" role="src" />
+   <file name="config.m4" role="src" />
+   <file name="LICENSE" role="doc" />
+   <file name="Makefile.in" role="src" />
+   <file name="php_apd.c" role="src" />
+   <file name="php_apd.h" role="src" />
+   <file name="php_sockets.h" role="src" />
+   <file name="php_sockets_win.h" role="src" />
+   <file name="pprof2calltree" role="script" />
+   <file name="pprofp" role="script" />
+   <file name="README" role="doc" />
+   <file name="win32compat.c" role="src" />
+   <file name="win32compat.h" role="src" />
+  </dir> <!-- / -->
+ </contents>
+ <dependencies>
+  <required>
+   <php>
+    <min>5.0.0RC3-dev</min>
+   </php>
+   <pearinstaller>
+    <min>1.4.0b1</min>
+   </pearinstaller>
+  </required>
+ </dependencies>
+ <providesextension>apd</providesextension>
+ <extsrcrelease />
+ <changelog>
+  <release>
+   <version>
+    <release>0.2</release>
+    <api>0.2</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2002-10-15</date>
+   <license uri="http://www.php.net/license">PHP License</license>
+   <notes>
+First release into PECL.  Previous chagelog at http://apd.communityconnect.com
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>0.3</release>
+    <api>0.3</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2002-10-15</date>
+   <license uri="http://www.php.net/license">PHP License</license>
+   <notes>
+Complete rewrite of internal to use the zend_execute function
+pointer instead of the engine hooks for tracing.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>0.3p1</release>
+    <api>0.3p1</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2002-10-29</date>
+   <license uri="http://www.php.net/license">PHP License</license>
+   <notes>
+Enabled compile on non 4.3 systems
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>0.3p2</release>
+    <api>0.3p2</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2002-10-29</date>
+   <license uri="http://www.php.net/license">PHP License</license>
+   <notes>
+Doc fix, minor performance improvements
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>0.4</release>
+    <api>0.4</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2002-11-25</date>
+   <license uri="http://www.php.net/license">PHP License</license>
+   <notes>
+Fixed installation of pprofp, added some memory tracing
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>0.9</release>
+    <api>0.9</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2002-11-25</date>
+   <license uri="http://www.php.net/license">PHP License</license>
+   <notes>
+Fixed build for 4.3
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>0.9.1</release>
+    <api>0.9.1</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2004-07-16</date>
+   <license uri="http://www.php.net/license">PHP License</license>
+   <notes>
+Fix for packaging error
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>0.9.2</release>
+    <api>0.9.2</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2004-09-28</date>
+   <license uri="http://www.php.net/license">PHP License</license>
+   <notes>
+Fix crash in pprofp
+Fix crash error on 64 bit.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0</release>
+    <api>1.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2004-08-20</date>
+   <license uri="http://www.php.net/license">PHP License</license>
+   <notes>
+Official php5 release
+   </notes>
+  </release>
+ </changelog>
 </package>
