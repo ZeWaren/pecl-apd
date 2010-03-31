@@ -70,7 +70,7 @@ ZEND_DECLARE_MODULE_GLOBALS(apd);
 
 /* List of exported functions. */
 
-function_entry apd_functions[] = {
+zend_function_entry apd_functions[] = {
 	PHP_FE(override_function, NULL)
 	PHP_FE(rename_function, NULL)
 	PHP_FE(apd_set_pprof_trace, NULL)
