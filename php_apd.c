@@ -56,11 +56,19 @@
 #undef TRACE_ZEND_COMPILE /* define to trace all calls to zend_compile_file */
 ZEND_DLEXPORT zend_op_array* apd_compile_file(zend_file_handle* TSRMLS_DC);
 ZEND_DLEXPORT zend_op_array* (*old_compile_file)(zend_file_handle* TSRMLS_DC);
+#if PHP_VERSION_ID < 50500
 ZEND_DLEXPORT void apd_execute(zend_op_array *op_array TSRMLS_DC);
 #if  ZEND_EXTENSION_API_NO >= 20020731
 ZEND_DLEXPORT void apd_execute_internal(zend_execute_data *execute_data_ptr, int return_value_used TSRMLS_DC);
 #endif
 ZEND_DLEXPORT void (*old_execute)(zend_op_array *op_array TSRMLS_DC);
+#else
+ZEND_DLEXPORT void apd_execute_ex(zend_execute_data *execute_data TSRMLS_DC);
+#if  ZEND_EXTENSION_API_NO >= 20020731
+ZEND_DLEXPORT void apd_execute_internal(zend_execute_data *execute_data_ptr, struct _zend_fcall_info *fci, int return_value_used TSRMLS_DC);
+#endif
+ZEND_DLEXPORT void (*old_execute_ex)(zend_execute_data *execute_data TSRMLS_DC);
+#endif
 
 ZEND_DLEXPORT void onStatement(zend_op_array *op_array);
 ZEND_DECLARE_MODULE_GLOBALS(apd);
@@ -337,7 +345,7 @@ char *apd_get_active_function_name(zend_op_array *op_array TSRMLS_DC)
 			}
 		} 
 		else {
-			switch (execd->opline->op2.u.constant.value.lval) {
+			switch (execd->opline->extended_value) {
 			case ZEND_EVAL:
 				funcname = estrdup("eval");
 				break;
@@ -441,8 +449,8 @@ static void log_time(TSRMLS_D)
 		if(utime || stime || rtime) {
             int lineno = 0;
             if(EG(active_op_array)) {
-				if(EG(active_op_array)->start_op) {
-					lineno = EG(active_op_array)->start_op->lineno;
+				if(EG(start_op)) {
+					lineno = EG(start_op)->lineno;
 				} else if(EG(active_op_array)->opcodes) {
 					lineno = EG(active_op_array)->opcodes->lineno;
 				}
@@ -510,28 +518,46 @@ PHP_MINIT_FUNCTION(apd)
 {
 	ZEND_INIT_MODULE_GLOBALS(apd, php_apd_init_globals, NULL)
 	REGISTER_INI_ENTRIES();
+
+#if PHP_VERSION_ID < 50500
 	old_execute = zend_execute;
 	zend_execute = apd_execute;
+#else
+	old_execute_ex = zend_execute_ex;
+	zend_execute_ex = apd_execute_ex;
+#endif
+
 	zend_execute_internal = apd_execute_internal;
 	return SUCCESS;
 }
 
-
-ZEND_API void apd_execute(zend_op_array *op_array TSRMLS_DC) 
-{
+#if PHP_VERSION_ID < 50500
+ZEND_DLEXPORT void apd_execute (zend_op_array *op_array TSRMLS_DC) {
+#else
+ZEND_DLEXPORT void apd_execute_ex (zend_execute_data *execute_data TSRMLS_DC) {
+  zend_op_array *op_array = execute_data->op_array;
+#endif
 	char *fname = NULL;
 	
   	fname = apd_get_active_function_name(op_array TSRMLS_CC);
    	trace_function_entry(EG(function_table), fname, ZEND_USER_FUNCTION,
 						zend_get_executed_filename(TSRMLS_C),
 						EG(in_execution)?zend_get_executed_lineno(TSRMLS_C):0);
-   	old_execute(op_array TSRMLS_CC);
+#if PHP_VERSION_ID < 50500
+    old_execute(op_array TSRMLS_CC);
+#else
+    old_execute_ex(execute_data TSRMLS_CC);
+#endif
    	trace_function_exit(fname);
    	efree(fname);
 	apd_interactive();
 }
 
+#if PHP_VERSION_ID < 50500
 ZEND_API void apd_execute_internal(zend_execute_data *execute_data_ptr, int return_value_used TSRMLS_DC) 
+#else
+ZEND_API void apd_execute_internal(zend_execute_data *execute_data_ptr, struct _zend_fcall_info *fci, int return_value_used TSRMLS_DC) 
+#endif
 {
 	char *fname = NULL;
 	zend_execute_data *execd;
@@ -541,7 +567,11 @@ ZEND_API void apd_execute_internal(zend_execute_data *execute_data_ptr, int retu
    	trace_function_entry(EG(function_table), fname, ZEND_INTERNAL_FUNCTION,
 						zend_get_executed_filename(TSRMLS_C),
 						EG(in_execution)?zend_get_executed_lineno(TSRMLS_C):0);
-	execute_internal(execute_data_ptr, return_value_used TSRMLS_CC);
+#if PHP_VERSION_ID < 50500
+    execute_internal(execute_data_ptr, return_value_used TSRMLS_CC);
+#else
+    execute_internal(execute_data_ptr, fci, return_value_used TSRMLS_CC);
+#endif
 	trace_function_exit(fname);
 	efree(fname);
 	apd_interactive();
